@@ -3,6 +3,7 @@ from app.config.server import GROQ_API_KEY,GROQ_MODEL,GROQ_TEMPERATURE
 
 isllmInstance  = None
 def get_groq_client():
+    global isllmInstance
     if not isllmInstance:
        if(not GROQ_API_KEY or not GROQ_MODEL):
           raise ValueError("GROQ_API_KEY and GROQ_MODEL must be set in environment variables.")
