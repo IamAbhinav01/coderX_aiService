@@ -1,4 +1,4 @@
-from server import  ASTRA_DB_APPLICATION_TOKEN, ASTRA_DB_APPLICATION_URL
+from app.config.server import  ASTRA_DB_APPLICATION_TOKEN, ASTRA_DB_APPLICATION_URL
 from astrapy import DataAPIClient
 
 # Initialize the client
