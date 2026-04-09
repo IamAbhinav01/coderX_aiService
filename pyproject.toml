@@ -1,12 +1,17 @@
 [project]
 name = "coderx-aiservice"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI-powered coding problem generation with semantic deduplication via AstraDB + sentence-transformers"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "dotenv>=0.9.9",
-    "langchain>=1.2.15",
-    "langchain-community>=0.4.1",
-    "langchain-groq>=1.1.2",
+    "python-dotenv>=1.0.0",
+    "langchain>=0.2.0",
+    "langchain-community>=0.2.0",
+    "langchain-groq>=0.1.9",
+    "sentence-transformers>=2.7.0", # BAAI/bge-large-en-v1.5 — 1024-dim local embeddings, no API key
+    "astrapy>=1.5.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.27.0",
+    "pydantic>=2.0.0",
 ]

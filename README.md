@@ -1,48 +1,85 @@
 # CoderX AI Service
 
-> **AI-powered backend microservice for the CoderX competitive programming platform** — generates original coding problems, test cases, and editorials on demand using an LLM orchestrated via LangChain and Groq.
+> **AI-powered backend microservice for the CoderX competitive programming platform** — generates original coding problems, test cases, and editorials on demand using an LLM orchestrated via LangChain and Groq, embeds them with Voyage AI, and persists them in an AstraDB vector collection.
+
+---
+
+## Table of Contents
+
+1. [Project Overview](#project-overview)
+2. [Architecture](#architecture)
+3. [Folder Structure](#folder-structure)
+4. [File-by-File Explanation](#file-by-file-explanation)
+5. [Data Flow](#data-flow)
+6. [Technologies Used](#technologies-used)
+7. [Current Features Implemented](#current-features-implemented)
+8. [Features In Progress](#features-in-progress)
+9. [Missing Components / TODO](#missing-components--todo)
+10. [Environment Variables](#environment-variables)
+11. [How to Run the Project](#how-to-run-the-project)
+12. [Example Workflow](#example-workflow)
+13. [Future Improvements](#future-improvements)
+14. [Summary](#summary)
 
 ---
 
 ## Project Overview
 
-`coderx-aiservice` is a standalone Python microservice that forms the AI backbone of the **CoderX** platform (a LeetCode-style competitive programming product). Its primary responsibility is to accept a topic and difficulty level as input and use a large language model to synthesize:
+`coderx-aiservice` is a standalone Python microservice that forms the **AI backbone** of the **CoderX** platform — a LeetCode-style competitive programming product. Its primary responsibilities are:
 
-- A structured coding problem statement (Markdown)
-- Three test cases (happy path, edge case, large input)
-- A step-by-step editorial with time and space complexity analysis
+1. **Problem Generation** — Accept a `topic` and `difficulty` from a caller, feed them into a carefully engineered LLM prompt, and receive a structured JSON object containing a coding problem title, a full Markdown problem statement, exactly three test cases (happy path / edge case / large input), and a step-by-step editorial with time and space complexity analysis.
 
-The output is always a strictly-typed JSON object, ensuring downstream consumers can parse responses without ambiguity. The service currently uses **Groq** as the LLM inference provider and **LangChain** as the orchestration layer.
+2. **Semantic Embedding** — Encode the generated problem text into a 1024-dimensional dense vector using **Voyage AI's** `voyage-4-large` embedding model. These vectors capture the semantic meaning of the problem for downstream similarity search.
+
+3. **Vector Storage** — Persist both the raw problem data and its embedding into an **AstraDB** (DataStax) vector collection named `coderx_problems`, using **cosine similarity** as the distance metric.
+
+**Problem it solves:** Manually writing high-quality, diverse coding problems is expensive and time-consuming. This service automates the entire pipeline — from generation to storage — so the platform can serve fresh, unique problems on demand and eventually detect or filter near-duplicate questions via vector similarity search.
 
 ---
 
-## Architecture Overview
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                  coderx-aiservice                   │
-│                                                     │
-│  ┌──────────┐    ┌───────────────┐   ┌───────────┐  │
-│  │ main.py  │───▶│  app/config/  │──▶│  Groq API │  │
-│  │(entry pt)│    │  server.py    │   │  (remote) │  │
-│  └──────────┘    │  langchainCfg │   └───────────┘  │
-│                  └───────┬───────┘                  │
-│                          │                          │
-│                  ┌───────▼───────┐                  │
-│                  │ app/prompts/  │                  │
-│                  │ problemPrompt │                  │
-│                  └───────────────┘                  │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                       coderx-aiservice                          │
+│                                                                 │
+│  ┌──────────┐   ┌───────────────────────────────────────────┐  │
+│  │ main.py  │──▶│              app/config/                  │  │
+│  │(entry pt)│   │  server.py  ──  langchainConfig.py        │  │
+│  └──────────┘   │                      │                    │  │
+│                 │               db.py (AstraDB)             │  │
+│                 └──────────────────────────────────────────┘  │
+│                                  │                              │
+│               ┌──────────────────┼──────────────────┐          │
+│               ▼                  ▼                  ▼          │
+│        ┌─────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│        │ app/prompts/│  │  app/utils/  │  │ app/data_stax│    │
+│        │ problemPrompt│  │  embedder.py │  │ create_      │    │
+│        └──────┬──────┘  └──────┬───────┘  │ collection.py│    │
+│               │                │          └──────┬───────┘    │
+│               ▼                ▼                 ▼            │
+│          Groq API         Voyage AI API      AstraDB API      │
+│         (LLM Chain)      (1024-dim embed)   (Vector Store)    │
+│                                                                 │
+│  ┌──────────────┐                                               │
+│  │app/vector_   │  ← empty; intended retrieval logic goes here  │
+│  │store/        │                                               │
+│  └──────────────┘                                               │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-The architecture is intentionally minimal at this stage:
+### Layer Breakdown
 
-| Layer | Role |
-|---|---|
-| **Config** | Reads environment variables and initialises the LangChain + Groq client |
-| **Prompt Templates** | Encodes the structured LLM prompt with input variables |
-| **LLM Chain** | (intended) Combines prompt + model into an invocable chain |
-| **Entry Point** | (stub) Will wire everything together and expose the API |
+| Layer | Module | Role |
+|---|---|---|
+| **Entry Point** | `main.py` | Application bootstrap (currently a stub) |
+| **Config** | `app/config/server.py` | Loads `.env`, exports typed config constants |
+| **LLM Layer** | `app/config/langchainConfig.py` | Singleton factory for the `ChatGroq` LLM client |
+| **DB Layer** | `app/config/db.py` | Initialises the AstraDB `DataAPIClient` and `db` object |
+| **Prompt Engineering** | `app/prompts/problemPrompt.py` | LangChain `PromptTemplate` that enforces JSON output schema |
+| **Embedding** | `app/utils/embedder.py` | Calls Voyage AI to produce 1024-dim dense vectors |
+| **Vector DB Setup** | `app/data_stax/create_collection.py` | One-time script to create the AstraDB vector collection |
+| **Vector Store** | `app/vector_store/` | *(Empty)* Retrieval and similarity search — planned |
 
 ---
 
@@ -51,21 +88,42 @@ The architecture is intentionally minimal at this stage:
 ```
 coderX_aiService/
 │
-├── main.py                   → Application entry point (currently a stub)
-├── pyproject.toml            → Project metadata and dependency manifest (uv)
-├── uv.lock                   → Locked dependency tree for reproducible installs
-├── .python-version           → Pins runtime to Python 3.10
-├── .env                      → Local environment variable overrides (NOT committed to VCS ideally)
-├── README.md                 → This file
+├── main.py                        → Application entry point (stub)
+├── pyproject.toml                 → Project metadata & dependencies (uv)
+├── uv.lock                        → Locked dependency tree (reproducible installs)
+├── .python-version                → Pins Python runtime to 3.10
+├── .env                           → Local secrets (NOT committed in production)
+├── .gitignore                     → Excludes .env, .venv, embeddings.json
+├── embeddings.json                → Local dump of raw Voyage AI embedding vectors
+│                                    (6 × 1024 floats — dev/test artefact)
 │
 └── app/
     ├── config/
-    │   ├── server.py         → Loads .env and exports typed config constants
-    │   └── langchainConfig.py→ Singleton factory for the ChatGroq LLM client
+    │   ├── server.py              → Reads environment variables, exports constants
+    │   ├── langchainConfig.py     → ChatGroq singleton factory via LangChain
+    │   └── db.py                  → AstraDB DataAPIClient connection & db handle
     │
-    └── prompts/
-        └── problemPrompt.py  → LangChain PromptTemplate for problem generation
+    ├── prompts/
+    │   └── problemPrompt.py       → Zero-shot JSON-constrained LangChain prompt
+    │
+    ├── utils/
+    │   └── embedder.py            → Voyage AI client; embeds text → 1024-dim vectors
+    │
+    ├── data_stax/
+    │   └── create_collection.py   → One-time setup: creates the AstraDB vector collection
+    │
+    └── vector_store/              → (Empty) Planned: similarity search & retrieval logic
 ```
+
+### Folder Responsibilities
+
+| Folder | Responsibility |
+|---|---|
+| `app/config/` | All environment and client configuration — single source of truth for secrets and service clients |
+| `app/prompts/` | LLM prompt templates — decoupled from the chain so they can be evolved independently |
+| `app/utils/` | Shared utilities across the service (currently embedding only; will grow) |
+| `app/data_stax/` | DataStax AstraDB lifecycle scripts (collection creation, migrations) |
+| `app/vector_store/` | Intended home for vector search, retrieval, and deduplication logic |
 
 ---
 
@@ -78,9 +136,22 @@ coderX_aiService/
 | **Purpose** | Application entry point |
 | **Current State** | Stub — only prints `"Hello from coderx-aiservice!"` |
 | **Key Functions** | `main()` |
-| **Interactions** | None yet; intended to wire up the server (FastAPI/Flask) and invoke the LLM chain |
+| **Interactions** | None yet; intended to bootstrap the HTTP server and invoke the generation + embedding pipeline |
 
 > ⚠️ This file is a placeholder. No HTTP server, routing, or chain invocation is wired up yet.
+
+---
+
+### `pyproject.toml`
+
+| Attribute | Detail |
+|---|---|
+| **Purpose** | Project manifest managed by the `uv` package manager |
+| **Package Name** | `coderx-aiservice` v0.1.0 |
+| **Python Requirement** | `>=3.10` |
+| **Declared Dependencies** | `dotenv>=0.9.9`, `langchain>=1.2.15`, `langchain-community>=0.4.1`, `langchain-groq>=1.1.2` |
+
+> ⚠️ **Gap** — `voyageai` and `astrapy` are actively used in source files but are **not declared** in `pyproject.toml`. They must be installed manually and should be added as formal dependencies.
 
 ---
 
@@ -89,11 +160,11 @@ coderX_aiService/
 | Attribute | Detail |
 |---|---|
 | **Purpose** | Centralised environment configuration loader |
-| **Key Variables Exported** | `GROQ_API_KEY`, `GROQ_MODEL`, `GROQ_TEMPERATURE` |
+| **Key Exports** | `GROQ_API_KEY`, `GROQ_MODEL`, `GROQ_TEMPERATURE`, `ASTRA_DB_APPLICATION_TOKEN`, `ASTRA_DB_APPLICATION_URL`, `VOYAGE_API_KEY` |
 | **Mechanism** | Calls `load_dotenv()` then reads typed values from `os.getenv()` |
-| **Interactions** | Imported by `langchainConfig.py` |
+| **Interactions** | Imported by `langchainConfig.py`, `db.py`, and `embedder.py` |
 
-**Critical bug:** `GROQ_TEMPERATURE` is cast with `float(os.getenv("GROQ_TEMPERATURE"))` without a fallback. If `GROQ_TEMPERATURE` is missing from the environment, this will raise a `TypeError` at import time.
+**Known Issue:** `float(os.getenv("GROQ_TEMPERATURE"))` will raise a `TypeError` if `GROQ_TEMPERATURE` is absent from the environment. A safe default should be used: `float(os.getenv("GROQ_TEMPERATURE", "0.7"))`.
 
 ---
 
@@ -104,10 +175,42 @@ coderX_aiService/
 | **Purpose** | Singleton factory that constructs a `ChatGroq` LLM client |
 | **Key Function** | `get_groq_client()` — returns a configured `ChatGroq` instance |
 | **LLM Provider** | Groq (via `langchain-groq`) |
+| **Model** | Configurable via `GROQ_MODEL`; currently set to `openai/gpt-oss-120b` |
 | **Response Format** | Forces `{"type": "json_object"}` — all LLM outputs are structured JSON |
-| **Interactions** | Imports config constants from `server.py`; returned client is consumed by chains |
+| **Temperature** | Configurable via `GROQ_TEMPERATURE` (default `0.7`) |
+| **Interactions** | Imports config from `server.py`; the returned client will be consumed by the LangChain chain |
 
-**Critical bug:** The singleton guard pattern is broken. `isllmInstance` is a module-level variable set to `None`, but inside `get_groq_client()` it is read (`if not isllmInstance`) yet then assigned without the `global` keyword. Python will raise an `UnboundLocalError` on the first call. The correct fix is to add `global isllmInstance` at the top of the function, or use a class-based singleton.
+**Known Bug — `UnboundLocalError`:** The global singleton guard reads `isllmInstance` before the `global` keyword is declared:
+
+```python
+# Current (broken):
+isllmInstance = None
+def get_groq_client():
+    if not isllmInstance:       # ← reads local scope → UnboundLocalError
+        ...
+    isllmInstance = ChatGroq(...)  # ← Python treats isllmInstance as local
+
+# Fix:
+def get_groq_client():
+    global isllmInstance          # ← declare global first
+    if not isllmInstance:
+        isllmInstance = ChatGroq(...)
+    return isllmInstance
+```
+
+---
+
+### `app/config/db.py`
+
+| Attribute | Detail |
+|---|---|
+| **Purpose** | Establishes and exposes the AstraDB database connection |
+| **Key Objects** | `client` (`DataAPIClient`), `db` (database handle) |
+| **Mechanism** | Uses `astrapy.DataAPIClient` with the application token and URL from `server.py` |
+| **Side Effect** | Prints the list of existing collection names on import — confirms connectivity |
+| **Interactions** | Imports `ASTRA_DB_APPLICATION_TOKEN` and `ASTRA_DB_APPLICATION_URL` from `server.py`; `db` handle will be used by vector store operations |
+
+> ⚠️ `db.py` imports from `app.config.server` but `create_collection.py` incorrectly imports directly from `app.config.db` (which re-exports `ASTRA_DB_APPLICATION_TOKEN`). This causes a circular-style import inconsistency and should be unified.
 
 ---
 
@@ -116,313 +219,294 @@ coderX_aiService/
 | Attribute | Detail |
 |---|---|
 | **Purpose** | Defines the LLM prompt and LangChain `PromptTemplate` for problem generation |
-| **Key Objects** | `problem_prompt_template` (raw string), `problem_prompt` (PromptTemplate) |
+| **Key Objects** | `problem_prompt_template` (raw string), `problem_prompt` (`PromptTemplate`) |
 | **Input Variables** | `topic`, `difficulty` |
-| **Output Contract** | Strict JSON schema: `title`, `description`, `difficulty`, `testCases[]`, `editorial` |
-| **Interactions** | Will be combined with the `ChatGroq` client in a LangChain chain (not yet wired) |
+| **Output Contract** | Strict JSON: `title`, `description` (Markdown), `difficulty`, `testCases[]`, `editorial` |
+| **Interactions** | Will be combined with `ChatGroq` in a LangChain chain (not yet wired) |
 
-The prompt enforces several hard rules on the LLM:
-- Output pure JSON only (no markdown fences)
-- Exactly 3 test cases
-- `difficulty` must be `easy | medium | hard` (lowercase)
-- Description must contain: Problem Statement, Input Format, Output Format, Constraints, and ≥1 worked Example
+**Prompt Design Principles:**
+- **Role priming** — positions the LLM as "an expert competitive-programming problem setter working for CoderX (similar to LeetCode)"
+- **Schema enforcement** — the exact JSON structure is embedded verbatim in the prompt
+- **Hard rules** — 5 numbered rules prevent hallucination of extra fields, markdown code fences, or out-of-specification values
+- **Test case diversity** — explicitly requires a happy-path case, an edge case, and a large-input case
+- **JSON mode** — `response_format={"type": "json_object"}` is passed at the API level as a secondary safety net
 
 ---
 
-## Core Features Implemented
+### `app/utils/embedder.py`
 
-| Feature | Status |
+| Attribute | Detail |
 |---|---|
-| Environment configuration loading | ✅ Complete |
-| Groq LLM client initialisation | ⚠️ Implemented but has a critical bug (see above) |
-| Problem generation prompt template | ✅ Complete (well-structured JSON-forcing prompt) |
-| LangChain chain assembly | ❌ Not implemented |
-| API / HTTP server | ❌ Not implemented |
-| Request routing | ❌ Not implemented |
-| Response serialisation | ❌ Not implemented |
-| Authentication / rate limiting | ❌ Not implemented |
+| **Purpose** | Embeds text documents into 1024-dimensional dense vectors using Voyage AI |
+| **Key Objects** | `vo` (`voyageai.Client`), `texts` (list of 6 sample strings), `result` (embedding output) |
+| **Embedding Model** | `voyage-4-large` |
+| **Input Type** | `"document"` (optimised for storage/retrieval, not for query) |
+| **Output** | A list of 1024-element float arrays per input text |
+| **Interactions** | Reads `VOYAGE_API_KEY` from `server.py`; results will feed into AstraDB vector inserts |
+
+> ℹ️ Currently the `texts` list contains 6 **hardcoded sample sentences** (Mediterranean diet, photosynthesis, etc.) that are unrelated to coding problems. This is a development test harness — in production, the generated problem text will replace these. The raw float output is saved locally as `embeddings.json`.
 
 ---
 
-## APIs / Endpoints
+### `app/data_stax/create_collection.py`
 
-No HTTP endpoints are implemented at this time. The intended endpoint based on the codebase design is:
+| Attribute | Detail |
+|---|---|
+| **Purpose** | One-time setup script that creates the `coderx_problems` vector collection in AstraDB |
+| **Collection Name** | `coderx_problems` |
+| **Vector Dimension** | `1024` (matches Voyage AI `voyage-4-large` output) |
+| **Distance Metric** | Cosine similarity (`VectorMetric.COSINE`) |
+| **Key Objects** | `CollectionDefinition`, `CollectionVectorOptions` from `astrapy.info` |
+| **Interactions** | Reads credentials from `app.config.db`; run once manually before the service is started |
 
-```
-POST /generate/problem
-Body: { "topic": "<string>", "difficulty": "easy | medium | hard" }
-Response: {
-  "title": "...",
-  "description": "... (Markdown)",
-  "difficulty": "easy | medium | hard",
-  "testCases": [
-    { "input": "...", "output": "..." },
-    { "input": "...", "output": "..." },
-    { "input": "...", "output": "..." }
-  ],
-  "editorial": "..."
-}
-```
+> ⚠️ This script should be run **once** to provision the collection. It will error if the collection already exists. Consider wrapping in a try/except or using AstraDB's `if_not_exists` pattern for idempotency.
 
 ---
 
-## Data Models
+### `app/vector_store/` *(empty directory)*
 
-No database or ORM is present. The only data model is the **LLM response schema**, enforced through the prompt:
-
-```json
-{
-  "title": "string",
-  "description": "string (Markdown)",
-  "difficulty": "easy | medium | hard",
-  "testCases": [
-    { "input": "string", "output": "string" }
-  ],
-  "editorial": "string"
-}
-```
-
-No persistence layer (SQL, NoSQL, cache) exists in the current codebase.
+| Attribute | Detail |
+|---|---|
+| **Purpose** | Intended location for vector similarity search and retrieval logic |
+| **Current State** | Empty — no files |
+| **Planned** | Query encoding, ANN (approximate nearest-neighbour) search, duplicate detection |
 
 ---
 
-## AI / LLM Integrations
+### `embeddings.json`
 
-### Provider
-- **Groq** — fast LLM inference API (OpenAI-compatible)
-- **Model configured:** `openai/gpt-oss-120b` (set in `.env`)
-
-### Orchestration
-- **LangChain** (`langchain`, `langchain-community`, `langchain-groq`)
-- The `ChatGroq` class from `langchain-groq` wraps the Groq API
-
-### Pipeline (intended)
-
-```
-User Input (topic, difficulty)
-       │
-       ▼
-PromptTemplate.format_prompt(topic=..., difficulty=...)
-       │
-       ▼
-ChatGroq.invoke(formatted_prompt)   ← response_format: json_object enforced
-       │
-       ▼
-JSON-parsed structured problem object
-       │
-       ▼
-HTTP Response to caller
-```
-
-### Prompt Design
-
-The prompt in `problemPrompt.py` is a **zero-shot, schema-constrained** prompt. Key design choices:
-
-1. **Role priming** — "You are an expert competitive-programming problem setter working for CoderX"
-2. **Schema enforcement** — the exact JSON shape is embedded in the prompt
-3. **Hard rules** — numbered rules prevent hallucination of extra fields or markdown wrappers
-4. **Test case diversity** — explicitly requires happy path, edge case, and large input variants
-5. **JSON mode** — `response_format={"type": "json_object"}` is passed at the API level as an additional safety net
+| Attribute | Detail |
+|---|---|
+| **Purpose** | Local dump of the raw Voyage AI embedding output |
+| **Content** | A JSON array of 6 arrays, each containing 1024 float values |
+| **Source** | Generated by `app/utils/embedder.py` from the 6 hardcoded `texts` |
+| **Git Status** | Listed in `.gitignore` — not tracked in version control |
+| **Usage** | Development/debugging artefact; not used by any production code path |
 
 ---
 
-## Execution Flow
+## Data Flow
+
+### Current (Partial) Flow
 
 ```
-1. Application starts → main.py → main() [stub, nothing happens yet]
+Developer runs embedder.py
+        │
+        ▼
+voyageai.Client.embed(texts, model="voyage-4-large", input_type="document")
+        │
+        ▼
+List of 6 × 1024-float vectors
+        │
+        ▼
+Saved locally → embeddings.json
+```
 
-Intended full flow once implemented:
-2. HTTP server starts (e.g., FastAPI/Uvicorn)
-3. Client sends POST /generate/problem { topic, difficulty }
-4. Route handler calls get_groq_client() to get the LLM instance
-5. problem_prompt.format_prompt(topic=topic, difficulty=difficulty) builds the message
-6. ChatGroq.invoke(prompt) sends request to Groq API
-7. Groq returns JSON string → parsed into Python dict
-8. Dict returned as HTTP JSON response to client
+### Intended Full Production Flow
+
+```
+1. Client sends request → POST /generate/problem
+   Body: { "topic": "binary search", "difficulty": "medium" }
+        │
+        ▼
+2. Route handler validates input (topic, difficulty)
+        │
+        ▼
+3. problem_prompt.format_prompt(topic=topic, difficulty=difficulty)
+   → Builds the LLM prompt string
+        │
+        ▼
+4. get_groq_client().invoke(formatted_prompt)
+   → Sends request to Groq API (model: openai/gpt-oss-120b, temp: 0.7)
+   → Response forced to JSON via response_format={"type": "json_object"}
+        │
+        ▼
+5. Parse JSON response → structured problem dict
+   {title, description, difficulty, testCases[], editorial}
+        │
+        ▼
+6. Combine title + description + editorial into embedding input string
+        │
+        ▼
+7. voyageai.Client.embed([problem_text], model="voyage-4-large", input_type="document")
+   → 1024-dimensional float vector
+        │
+        ▼
+8. Insert into AstraDB collection "coderx_problems"
+   Document: { ...problem_fields, "$vector": [1024 floats] }
+        │
+        ▼
+9. Return structured problem JSON to client
 ```
 
 ---
 
-## Dependencies
+## Technologies Used
 
-| Package | Version Constraint | Role |
+| Technology | Version / Details | Role |
 |---|---|---|
-| `langchain` | `>=1.2.15` | LLM orchestration framework |
-| `langchain-community` | `>=0.4.1` | Extended LangChain integrations |
-| `langchain-groq` | `>=1.1.2` | Groq-specific LangChain adapter (`ChatGroq`) |
-| `dotenv` | `>=0.9.9` | `.env` file loader |
-| **Python** | `>=3.10` | Runtime (pinned to 3.10 via `.python-version`) |
-| **uv** | — | Package manager / lockfile (replaces pip/poetry) |
+| **Python** | 3.10 (pinned via `.python-version`) | Runtime |
+| **uv** | — | Package manager and dependency lockfile |
+| **LangChain** | `>=1.2.15` | LLM orchestration — prompt templates, chain composition |
+| **langchain-community** | `>=0.4.1` | Extended LangChain integrations |
+| **langchain-groq** | `>=1.1.2` | Groq-specific adapter (`ChatGroq` class) |
+| **Groq** | API (model: `openai/gpt-oss-120b`) | Fast LLM inference (OpenAI-compatible API) |
+| **Voyage AI** | `voyageai` SDK, model `voyage-4-large` | Text embedding — 1024-dimensional dense vectors |
+| **AstraDB (DataStax)** | `astrapy` SDK, us-east-2 region | Vector database — stores problems + embeddings |
+| **dotenv** | `>=0.9.9` | `.env` file loading |
+
+---
+
+## Current Features Implemented
+
+| Feature | Status | File |
+|---|---|---|
+| Project scaffold with `uv` and lockfile | ✅ Complete | `pyproject.toml`, `uv.lock` |
+| Environment variable loading | ✅ Complete | `app/config/server.py` |
+| Groq LLM client initialisation | ⚠️ Implemented (bug present) | `app/config/langchainConfig.py` |
+| Problem generation prompt template | ✅ Complete | `app/prompts/problemPrompt.py` |
+| AstraDB connection + db handle | ✅ Complete | `app/config/db.py` |
+| AstraDB vector collection creation | ✅ Complete (run once) | `app/data_stax/create_collection.py` |
+| Voyage AI embedding client | ✅ Complete (test data) | `app/utils/embedder.py` |
+| Local embedding dump | ✅ Complete (dev artefact) | `embeddings.json` |
+| `.gitignore` | ✅ Present | `.gitignore` |
+
+---
+
+## Features In Progress
+
+| Feature | Evidence | Location |
+|---|---|---|
+| **Vector similarity search / retrieval** | `app/vector_store/` directory exists but is empty | `app/vector_store/` |
+| **LangChain chain assembly** | `ChatGroq` client and `PromptTemplate` are both built independently but never connected | `langchainConfig.py`, `problemPrompt.py` |
+| **Embedding integration with problem generation** | Embedder uses placeholder text; not connected to problem output | `app/utils/embedder.py` |
+| **AstraDB document insertion** | Collection is created; insert logic not written | `app/data_stax/` |
+
+---
+
+## Missing Components / TODO
+
+| Priority | Component | Description |
+|---|---|---|
+| 🔴 **P0** | Fix `UnboundLocalError` | Add `global isllmInstance` inside `get_groq_client()` |
+| 🔴 **P0** | Fix `float()` crash | Use `float(os.getenv("GROQ_TEMPERATURE", "0.7"))` |
+| 🔴 **P0** | Rotate the exposed API keys | Keys in `.env` are real credentials — rotate immediately |
+| 🔴 **P0** | Add missing deps to `pyproject.toml` | `voyageai` and `astrapy` are used but not declared |
+| 🔴 **P1** | Wire the LangChain chain | `problem_prompt | get_groq_client()` — invoke and parse response |
+| 🔴 **P1** | HTTP server | Create a FastAPI app with `POST /generate/problem` |
+| 🔴 **P1** | Connect embedder to problem output | Pass generated problem text (not placeholder) to Voyage AI |
+| 🔴 **P1** | AstraDB insert logic | After embedding, insert `{...problem, "$vector": embedding}` into `coderx_problems` |
+| 🟡 **P2** | Vector similarity search | Implement `app/vector_store/` — ANN search to detect duplicate/similar problems |
+| 🟡 **P2** | Pydantic models | Request (`topic`, `difficulty`) and response schema validation |
+| 🟡 **P2** | Input validation | Allowlist `difficulty` to `["easy", "medium", "hard"]`; sanitise `topic` |
+| 🟡 **P2** | Error handling | LLM failures, JSON parse errors, AstraDB timeouts, Voyage API errors |
+| 🟡 **P2** | Unit tests | Mock Groq + Voyage + AstraDB; test prompt formatting and response parsing |
+| 🟢 **P3** | Dockerfile | Containerise for deployment on Render/Railway/GCP |
+| 🟢 **P3** | CI/CD pipeline | GitHub Actions: lint, type-check, test on every PR |
+| 🟢 **P3** | Caching layer | Redis cache keyed on `(topic, difficulty)` to avoid redundant LLM calls |
+| 🟢 **P3** | Idempotent collection creation | Wrap `create_collection.py` in a try/except for safe re-runs |
+| 🟢 **P3** | Similarity threshold filtering | Before inserting, query the vector store; reject problems above a cosine similarity threshold |
 
 ---
 
 ## Environment Variables
 
-| Variable | Required | Example Value | Description |
+Create a `.env` file in the project root with the following variables:
+
+```env
+# Groq LLM Configuration
+GROQ_API_KEY=gsk_your_key_here
+GROQ_MODEL=openai/gpt-oss-120b
+GROQ_TEMPERATURE=0.7
+
+# AstraDB (DataStax) Configuration
+ASTRA_DB_APPLICATION_TOKEN=AstraCS:your_token_here
+ASTRA_DB_APPLICATION_URL=https://your-db-id-region.apps.astra.datastax.com
+
+# Voyage AI Configuration
+VOYAGE_API_KEY=pa-your_key_here
+```
+
+| Variable | Required | Type | Description |
 |---|---|---|---|
-| `GROQ_API_KEY` | ✅ Yes | `gsk_...` | API key for authenticating with the Groq inference API |
-| `GROQ_MODEL` | ✅ Yes | `openai/gpt-oss-120b` | Groq model identifier to use for generation |
-| `GROQ_TEMPERATURE` | ✅ Yes | `0.7` | Sampling temperature for the LLM (0.0 = deterministic, 1.0 = creative) |
+| `GROQ_API_KEY` | ✅ Yes | `string` | API key for the Groq inference API (`gsk_...`) |
+| `GROQ_MODEL` | ✅ Yes | `string` | Groq model identifier (e.g., `openai/gpt-oss-120b`, `llama3-70b-8192`) |
+| `GROQ_TEMPERATURE` | ✅ Yes | `float` | LLM sampling temperature — `0.0` = deterministic, `1.0` = creative |
+| `ASTRA_DB_APPLICATION_TOKEN` | ✅ Yes | `string` | AstraDB application token (`AstraCS:...`) |
+| `ASTRA_DB_APPLICATION_URL` | ✅ Yes | `string` | AstraDB HTTPS endpoint URL |
+| `VOYAGE_API_KEY` | ✅ Yes | `string` | Voyage AI API key (`pa-...`) |
 
-> ⚠️ **Security Warning:** The `.env` file in this repository contains a real API key (`gsk_1FnRvjz3...`). This key should be **immediately rotated** and `.env` should be added to `.gitignore` to prevent future credential leakage.
-
----
-
-## Current Implementation Status
-
-| Component | Status | Notes |
-|---|---|---|
-| Project scaffold | ✅ Complete | `uv`-based Python project with lockfile |
-| Environment config | ✅ Complete | `server.py` loads and exports all vars |
-| LLM client factory | ⚠️ Buggy | Singleton pattern broken (`UnboundLocalError`) |
-| Problem prompt | ✅ Complete | Well-structured, schema-enforced prompt |
-| LangChain chain assembly | ❌ Missing | Prompt + model not connected |
-| API server | ❌ Missing | No FastAPI/Flask/etc. server exists |
-| Endpoints / routes | ❌ Missing | No HTTP routes defined |
-| Error handling | ❌ Missing | No try/except, no validation |
-| Tests | ❌ Missing | No test files present |
-| CI/CD | ❌ Missing | No GitHub Actions or pipeline config |
-| Dockerfile | ❌ Missing | No containerisation |
-| `.gitignore` | ❌ Missing | `.env` file with real credentials is exposed |
+> ⚠️ **Security Warning:** The `.env` file is listed in `.gitignore` and must **never** be committed to version control. The keys currently stored in that file are real credentials and should be rotated immediately if the repository has been shared or made public.
 
 ---
 
-## Potential Issues
-
-### 🔴 Critical
-
-1. **API Key Exposed in `.env`** — The Groq API key (`gsk_1FnRvjz3...`) is committed in plain text. If this repository is public or shared, the key must be rotated immediately.
-
-2. **`UnboundLocalError` in `get_groq_client()`** — The function reads `isllmInstance` (module-level) inside a function scope but then assigns to it without `global isllmInstance`. Python treats any assigned variable as local; reading it before assignment raises `UnboundLocalError`.
-
-   ```python
-   # Fix:
-   def get_groq_client():
-       global isllmInstance          # ← add this
-       if not isllmInstance:
-           ...
-           isllmInstance = ChatGroq(...)
-       return isllmInstance
-   ```
-
-3. **Unchecked `float()` cast** — `float(os.getenv("GROQ_TEMPERATURE"))` will raise `TypeError` if the variable is absent. Use `float(os.getenv("GROQ_TEMPERATURE", "0.7"))` as a safe default.
-
-### 🟡 Moderate
-
-4. **No `.gitignore`** — The `.venv` directory and `.env` file are likely tracked by git. Both should be excluded.
-
-5. **`langchain` version `>=1.2.15`** — LangChain's public API changes frequently between minor versions. Unpinned upper bounds can cause silent breakage when new versions are released.
-
-6. **Model name format** — `openai/gpt-oss-120b` uses an OpenAI-prefixed path on Groq, which suggests it targets a specific routing. This should be validated against Groq's current model catalogue.
-
-7. **No input validation** — `topic` and `difficulty` are injected directly into the prompt. A malicious or malformed input could attempt prompt injection.
-
-### 🟢 Low
-
-8. **`main.py` is a stub** — The project cannot actually do anything when run.
-
-9. **`langchain-community`** is included as a dependency but nothing in the current code uses it.
-
----
-
-## Improvement Suggestions
-
-### Scalability
-- Add an **async HTTP server** (FastAPI + Uvicorn + `asyncio`) so multiple problem generation requests can be processed concurrently without blocking.
-- Consider **streaming** the LLM response for long editorials instead of waiting for the full completion.
-- Add a **Redis cache** keyed on `(topic, difficulty)` to serve repeated requests without hitting the LLM API.
-
-### Maintainability
-- Fix the singleton pattern — use a module-level `_client: ChatGroq | None = None` with `global` or a `@lru_cache(maxsize=1)` decorated factory.
-- Introduce **Pydantic models** for the request schema (`topic`, `difficulty`) and the LLM response schema to get free validation and serialisation.
-- Add **type annotations** throughout.
-- Separate concerns: create a `services/problem_generator.py` that builds and invokes the chain, keeping the route handler thin.
-
-### Performance
-- Groq already offers very fast inference; the main bottleneck will be latency. Use `async` LangChain calls (`ainvoke`) to avoid blocking the event loop.
-- Cache the `ChatGroq` client — avoid re-initialising it per request (this is what the singleton was meant to do).
-
-### Security
-- **Rotate the exposed API key immediately.**
-- Add `.env` and `.venv` to `.gitignore`.
-- Validate and sanitise `topic` and `difficulty` before injecting into the prompt (allowlist `difficulty` to `["easy", "medium", "hard"]`).
-- Add **rate limiting** (e.g., `slowapi`) to prevent API key exhaustion.
-- Store secrets via environment injection (Render/Railway secret manager, GitHub Actions secrets) — never commit them.
-
----
-
-## Missing Features / Next Steps
-
-Prioritised by impact:
-
-| Priority | Feature |
-|---|---|
-| 🔴 P0 | Rotate the exposed Groq API key |
-| 🔴 P0 | Add `.gitignore` (exclude `.env`, `.venv`, `__pycache__`) |
-| 🔴 P0 | Fix `UnboundLocalError` bug in `langchainConfig.py` |
-| 🔴 P0 | Fix `float()` crash in `server.py` |
-| 🔴 P1 | Build the LangChain chain: `problem_prompt \| get_groq_client()` |
-| 🔴 P1 | Create an HTTP server (FastAPI recommended) with `POST /generate/problem` |
-| 🟡 P2 | Add Pydantic request/response models |
-| 🟡 P2 | Add input validation (allowlist `difficulty`, sanitise `topic`) |
-| 🟡 P2 | Add error handling (LLM failures, JSON parse errors, API rate limits) |
-| 🟡 P2 | Write unit tests (mock the Groq API, test prompt formatting, test response parsing) |
-| 🟢 P3 | Dockerise the service |
-| 🟢 P3 | Add CI pipeline (lint, type-check, test) |
-| 🟢 P3 | Add Redis caching for repeated topic+difficulty pairs |
-| 🟢 P3 | Support additional prompt types (e.g., hint generation, solution evaluation) |
-
----
-
-## Developer Setup Instructions
+## How to Run the Project
 
 ### Prerequisites
 
 - Python 3.10+
 - [`uv`](https://github.com/astral-sh/uv) package manager
 
-### Install
+```bash
+# Install uv (if not already installed)
+pip install uv
+```
+
+### 1. Clone and Install
 
 ```bash
-# Clone the repository
 git clone <repo-url>
 cd coderX_aiService
 
-# Install dependencies using uv
+# Install all locked dependencies
 uv sync
+
+# Manually install undeclared deps (until pyproject.toml is fixed)
+uv add voyageai astrapy
 ```
 
-### Configure environment
+### 2. Configure Environment
 
 ```bash
-# Copy and fill in your credentials
-cp .env.example .env   # (create .env.example if it doesn't exist)
+# Create your .env file
+cp .env.example .env   # (or create it from scratch)
 ```
 
-Edit `.env`:
+Fill in all six variables as shown in the [Environment Variables](#environment-variables) section.
 
-```env
-GROQ_API_KEY=gsk_your_actual_key_here
-GROQ_TEMPERATURE=0.7
-GROQ_MODEL=llama3-70b-8192
-```
-
-### Run
+### 3. Provision the AstraDB Collection (One-Time)
 
 ```bash
-# Currently only runs the stub
+# This creates the "coderx_problems" vector collection in your AstraDB instance
+uv run python -m app.data_stax.create_collection
+```
+
+### 4. Test the Embedding Pipeline
+
+```bash
+# Runs the embedder against sample texts; outputs vectors to embeddings.json
+uv run python -m app.utils.embedder
+```
+
+### 5. Run the Application
+
+```bash
+# Currently only runs the stub — prints "Hello from coderx-aiservice!"
 uv run python main.py
 ```
 
-> Once the HTTP server is implemented, this will become `uv run uvicorn main:app --reload`
+> Once the HTTP server is implemented, this will become:
+> ```bash
+> uv run uvicorn main:app --reload --port 8000
+> ```
 
 ---
 
-## Example Usage
+## Example Workflow
 
-Once the API server is implemented, the intended usage is:
+Once the full pipeline is implemented, the intended usage is:
 
-### Generate a Problem
+### Request
 
 ```bash
 curl -X POST http://localhost:8000/generate/problem \
@@ -435,17 +519,74 @@ curl -X POST http://localhost:8000/generate/problem \
 ```json
 {
   "title": "Find Peak Element",
-  "description": "## Problem Statement\nGiven an array of integers...\n\n## Input Format\n...\n\n## Output Format\n...\n\n## Constraints\n- 1 ≤ n ≤ 10^5\n\n## Example\n**Input:** [1, 2, 3, 1]\n**Output:** 2",
+  "description": "## Problem Statement\nGiven a 0-indexed integer array `nums`, find a peak element and return its index.\n\n## Input Format\nA single line containing `n` space-separated integers.\n\n## Output Format\nA single integer — the index of a peak element.\n\n## Constraints\n- 1 ≤ n ≤ 10^5\n- -10^9 ≤ nums[i] ≤ 10^9\n- nums[-1] = nums[n] = -∞\n\n## Example\n**Input:** `[1, 2, 3, 1]`\n**Output:** `2`",
   "difficulty": "medium",
   "testCases": [
-    { "input": "[1,2,3,1]", "output": "2" },
-    { "input": "[1]", "output": "0" },
-    { "input": "[1,2,3,...,100000]", "output": "99999" }
+    { "input": "[1, 2, 3, 1]",           "output": "2"     },
+    { "input": "[1]",                     "output": "0"     },
+    { "input": "[1, 2, 3, ..., 100000]",  "output": "99999" }
   ],
-  "editorial": "Use binary search. At each midpoint, compare mid with mid+1...\nTime: O(log n), Space: O(1)"
+  "editorial": "Use binary search. At each midpoint `mid`, if `nums[mid] < nums[mid+1]`, the peak lies to the right; otherwise it lies to the left or at `mid`. Continue halving until `lo == hi`.\n\n**Time Complexity:** O(log n)\n**Space Complexity:** O(1)"
 }
+```
+
+### Internal Steps (Behind the Scenes)
+
+```
+POST /generate/problem
+    │
+    ├─ 1. Validate: difficulty ∈ {easy, medium, hard}
+    │
+    ├─ 2. Format prompt with topic="binary search", difficulty="medium"
+    │
+    ├─ 3. ChatGroq.invoke(prompt)  →  raw JSON string from Groq API
+    │
+    ├─ 4. json.loads(raw_string)   →  Python dict
+    │
+    ├─ 5. voyageai.embed([title + description + editorial])
+    │      →  1024-dim float vector
+    │
+    ├─ 6. astradb.collection("coderx_problems").insert_one({
+    │         ...problem_dict, "$vector": embedding_vector
+    │      })
+    │
+    └─ 7. Return problem_dict as HTTP 200 JSON response
 ```
 
 ---
 
-*Generated by automated codebase analysis — reflects the state of the repository as of April 2026.*
+## Future Improvements
+
+### Scalability
+- **Async HTTP server** — FastAPI with `async def` endpoints and `asyncio`-compatible LangChain calls (`ainvoke`) so multiple requests are processed concurrently without blocking.
+- **Streaming responses** — stream the LLM output token-by-token for long editorials, reducing perceived latency.
+- **Redis caching** — cache `(topic, difficulty)` → `problem_id` mappings to skip redundant LLM + embedding calls for recently seen combinations.
+- **Horizontal scaling** — the service is stateless (all state lives in AstraDB/Redis); it can be replicated behind a load balancer trivially.
+
+### Maintainability
+- **Fix the singleton bug** — use `@functools.lru_cache(maxsize=1)` on `get_groq_client()` as a Pythonic, thread-safe alternative.
+- **Pydantic models** — define `GenerateRequest(topic: str, difficulty: Literal["easy","medium","hard"])` and `Problem(title, description, difficulty, testCases, editorial)` with full type validation.
+- **Service layer** — create `services/problem_generator.py` that builds and invokes the full chain, keeping route handlers thin.
+- **Type annotations** — add `mypy`-compatible annotations throughout.
+
+### Deduplication & Quality
+- **Similarity filtering** — before inserting, query the vector store with the new embedding; if cosine similarity > 0.92 with any existing problem, reject or mutate the new problem.
+- **Post-generation validation** — programmatically verify that the LLM response contains all required fields and that `testCases` has exactly 3 entries before accepting.
+
+### Security
+- **Rotate all API keys** — `GROQ_API_KEY`, `ASTRA_DB_APPLICATION_TOKEN`, and `VOYAGE_API_KEY` should all be rotated immediately.
+- **Input sanitisation** — allowlist `difficulty` to `["easy", "medium", "hard"]` and apply length/content limits on `topic` to prevent prompt injection.
+- **Rate limiting** — use `slowapi` or an API gateway to throttle requests and protect the Groq and Voyage AI quotas.
+- **Secret management** — use environment injection at the platform level (Render secrets, GitHub Actions secrets, GCP Secret Manager) — never commit `.env`.
+
+---
+
+## Summary
+
+`coderx-aiservice` is an early-stage but well-structured Python microservice that implements the AI core of the CoderX competitive programming platform. It chains together three best-in-class AI services: **Groq** for ultra-fast LLM inference, **Voyage AI** for state-of-the-art semantic embeddings, and **AstraDB** for scalable vector storage and similarity search.
+
+The service has a clear three-stage architecture — *Generate → Embed → Store* — with solid foundations already in place: a clean prompt engineering template that enforces strict JSON output, a working AstraDB vector collection definition with correct 1024-dimensional cosine geometry, and a Voyage AI embedder producing the right vector dimensionality. The main work remaining is to wire the stages together into a callable chain, expose that chain via an HTTP API, and address a handful of known bugs in the configuration layer. Once those P0/P1 items are resolved, the service will be fully functional and ready to power on-demand problem generation at scale.
+
+---
+
+*Last updated: April 2026 — reflects the exact state of the repository at time of analysis.*
