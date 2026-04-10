@@ -1,22 +1,3 @@
-"""
-AstraDB Vector Store Interface
-
-Two public functions:
-  find_similar_problem(query_vector)         → dict | None
-  insert_problem(problem_data, vector)       → dict
-
-This is the Python equivalent of the MongoDB Problem model operations in the
-JS codebase, extended with vector similarity search via AstraDB's ANN index.
-
-How AstraDB vector search works:
-  - Each document stored in the collection has a "$vector" field (1024 floats).
-  - On find(), sorting by {"$vector": query_vector} triggers an ANN (Approximate
-    Nearest Neighbour) search using the cosine distance index.
-  - With include_similarity=True, each returned document gains a "$similarity"
-    key containing the cosine similarity score in [0, 1].
-  - We return only the top-1 result and check it against SIMILARITY_THRESHOLD.
-"""
-
 from app.config.db import db
 from app.utils.logger import get_logger
 
@@ -42,24 +23,7 @@ def find_similar_problem(
     query_vector: list[float],
     threshold: float = SIMILARITY_THRESHOLD,
 ) -> dict | None:
-    """
-    Search the vector collection for a problem semantically similar to
-    the given query vector.
-
-    The search uses AstraDB's built-in ANN (cosine) index — no full table
-    scan, O(log n) performance even at millions of documents.
-
-    Args:
-        query_vector: 1024-dim float list produced by embed_query().
-                      Must match the dimensionality of the stored vectors.
-        threshold:    minimum cosine similarity to consider a cache hit.
-                      Defaults to SIMILARITY_THRESHOLD (0.88).
-
-    Returns:
-        The matching document dict (without the $vector field) if a hit is
-        found, or None if the collection is empty or the best match is below
-        the threshold.
-    """
+   
     collection = _get_collection()
 
     # sort={"$vector": ...} triggers ANN search.
@@ -101,20 +65,7 @@ def find_similar_problem(
 
 
 def insert_problem(problem_data: dict, vector: list[float]) -> dict:
-    """
-    Insert a new problem document into AstraDB, attaching the embedding vector.
-
-    The "$vector" field is the AstraDB convention for the vector column —
-    it is used exclusively for ANN indexing and is not returned to API callers.
-
-    Args:
-        problem_data: cleaned problem dict (title, description, difficulty,
-                      testCases, editorial, topic).
-        vector:       1024-dim float list produced by embed_document().
-
-    Returns:
-        The problem dict with an "_id" string field added (the AstraDB-assigned UUID).
-    """
+    
     collection = _get_collection()
 
     # Merge the problem fields with the vector column
@@ -127,5 +78,4 @@ def insert_problem(problem_data: dict, vector: list[float]) -> dict:
         f"title='{problem_data.get('title')}'"
     )
 
-    # Return the problem data without the raw $vector (caller doesn't need it)
     return {**problem_data, "_id": inserted_id}

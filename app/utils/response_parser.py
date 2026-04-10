@@ -1,13 +1,11 @@
 """
 LLM Response Parser
 
-Mirrors the JS utils/responseParser.js.
-
 Responsible for:
-  1. Stripping any accidental markdown fences the LLM adds despite instructions
+  1. Stripping any accidental markdown fences the LLM adds
   2. Parsing the raw string as JSON
-  3. Validating that all required fields are present
-  4. Validating field-level constraints (difficulty enum, testCases list length)
+  3. Validating all required fields are present
+  4. Validating field-level constraints (difficulty enum, testCases length)
 """
 
 import json
@@ -27,28 +25,24 @@ def parse_llm_response(raw: str) -> dict:
     """
     Parse and validate the raw LLM output string into a problem dictionary.
 
-    Even though response_format=json_object is set at the API level the LLM
-    occasionally wraps the output in markdown fences (```json ... ```). This
-    function strips those before attempting JSON parsing.
-
     Args:
-        raw: the raw string returned by ChatGroq.invoke().content
+        raw: the raw string returned by the LLM
 
     Returns:
-        A validated dict with keys: title, description, difficulty,
-        testCases (list of 3 dicts), editorial.
+        A validated dict with keys:
+            title, description, difficulty, testCases, editorial
 
     Raises:
-        BaseError(502): malformed JSON, missing required fields, or invalid values.
+        BaseError(502): malformed JSON, missing fields, or invalid values.
     """
-    # ── Strip markdown code fences if present ────────────────────────────────
+
+    # ── 1. Strip markdown fences if present ──────────────────────────────────
     cleaned = raw.strip()
     if cleaned.startswith("```"):
         lines = cleaned.splitlines()
-        # Remove the opening  ``` / ```json  line and the closing  ```  line
         cleaned = "\n".join(lines[1:-1]).strip()
 
-    # ── JSON decode ───────────────────────────────────────────────────────────
+    # ── 2. JSON decode ────────────────────────────────────────────────────────
     try:
         data: dict = json.loads(cleaned)
     except json.JSONDecodeError as exc:
@@ -56,8 +50,6 @@ def parse_llm_response(raw: str) -> dict:
             f"[ResponseParser] JSON decode failed: {exc}\n"
             f"Raw length: {len(raw)} chars | "
             f"First 500 chars: {raw[:500]!r}"
-            # If 'raw length' is suspiciously short (e.g. < 200 chars for a full problem),
-            # the LLM hit its max_tokens limit and truncated the output mid-string.
         )
         raise BaseError(
             502,
@@ -65,7 +57,7 @@ def parse_llm_response(raw: str) -> dict:
             str(exc),
         )
 
-    # ── Required field check ──────────────────────────────────────────────────
+    # ── 3. Required fields check ──────────────────────────────────────────────
     missing = REQUIRED_FIELDS - set(data.keys())
     if missing:
         logger.error(f"[ResponseParser] Missing fields: {sorted(missing)}")
@@ -74,21 +66,34 @@ def parse_llm_response(raw: str) -> dict:
             f"AI response is missing required fields: {sorted(missing)}.",
         )
 
-    # ── testCases integrity ───────────────────────────────────────────────────
-    if not isinstance(data["testCases"], list) or len(data["testCases"]) < 1:
-        raise BaseError(502, "AI response must include at least one test case.")
+    # ── 4. testCases integrity ────────────────────────────────────────────────
+    if not isinstance(data["testCases"], list) or len(data["testCases"]) != 3:
+        raise BaseError(
+            502,
+            f"AI response must include exactly 3 test cases. "
+            f"Got: {len(data['testCases']) if isinstance(data['testCases'], list) else 'non-list'}.",
+        )
 
-    # ── difficulty enum ───────────────────────────────────────────────────────
+    for i, tc in enumerate(data["testCases"]):
+        if not isinstance(tc, dict) or "input" not in tc or "output" not in tc:
+            raise BaseError(
+                502,
+                f"testCase at index {i} is missing 'input' or 'output' field.",
+            )
+
+    # ── 5. Difficulty enum ────────────────────────────────────────────────────
     if data.get("difficulty") not in VALID_DIFFICULTIES:
         raise BaseError(
             502,
-            f"AI returned an invalid difficulty: '{data.get('difficulty')}'. "
+            f"AI returned invalid difficulty: '{data.get('difficulty')}'. "
             f"Expected one of: {sorted(VALID_DIFFICULTIES)}.",
         )
 
     logger.info(
         f"[ResponseParser] Valid response | "
-        f"title='{data['title']}' | difficulty='{data['difficulty']}' | "
+        f"title='{data['title']}' | "
+        f"difficulty='{data['difficulty']}' | "
         f"testCases={len(data['testCases'])}"
     )
+
     return data

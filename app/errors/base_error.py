@@ -1,15 +1,4 @@
 class BaseError(Exception):
-    """
-    Custom application exception that carries an HTTP status code alongside
-    a human-readable message and an optional technical detail string.
-
-    Mirrors the JS  BaseError class from errors/Base.err.js.
-
-    Usage:
-        raise BaseError(400, "topic must be a non-empty string")
-        raise BaseError(502, "LLM returned invalid JSON", str(e))
-    """
-
     def __init__(
         self,
         status_code: int,
