@@ -1,8 +1,12 @@
+import requests
+
 from app.config.db import db
 from app.utils.logger import get_logger
 import json
 
 logger = get_logger(__name__)
+
+mongoDBRL = "http://localhost:3000/api/v1/problems"
 
 COLLECTION_NAME = "coderx_problems"
 
@@ -64,28 +68,71 @@ def find_similar_problem(
     )
     return None
 
-# def insert_into_mongodb(problem_data: dict):
-#     return 
+
+def transform_for_mongodb(problem_data: dict) -> dict:
+    return {
+        "title": problem_data["title"],
+        "description": problem_data["description"],
+        "difficulty": problem_data["difficulty"],
+        "testCases": problem_data["testCases"],
+        "editorial": problem_data["editorial"],
+        "codeStubs": [
+            {
+                "language": c["language"],
+                "startSnippet": c["startSnippet"],
+                "endSnippet": c["endSnippet"]
+            }
+            for c in problem_data["codeSnippets"]
+        ]
+    }
+def insert_into_mongodb(problem_data: dict):
+
+    new_problem_data = transform_for_mongodb(problem_data)
+
+    response = requests.post(mongoDBRL, json=new_problem_data)
+
+    if response.status_code != 201:
+        logger.error(
+            f"[MongoService] Failed to insert problem | "
+            f"status={response.status_code} | response={response.text}"
+        )
+        raise Exception("Mongo insertion failed")
+
+    data = response.json()
+
+    mongo_id = data["data"]["_id"]   # depends on your API response
+
+    logger.info(
+        f"[MongoService] Inserted ✓ | mongo_id='{mongo_id}'"
+    )
+
+    return mongo_id
 
 def insert_problem(problem_data: dict, vector: list[float]) -> dict:
-    
 
-    with open("problem_debug.json", "w") as f:
-        json.dump(problem_data, f, indent=4)
-    logger.info(f"Problem data written to problem_debug.json")
-    # logger.info("Storing new problem to MongoDB")
-    # insert_into_mongodb(problem_data=problem_data)
+    logger.info("Storing new problem to MongoDB")
+
+    mongo_id = insert_into_mongodb(problem_data)
 
     collection = _get_collection()
 
-    # Merge the problem fields with the vector column
-    doc = {**problem_data, "$vector": vector}
+    doc = {
+        "mongo_id": mongo_id,
+        "title": problem_data["title"],
+        "difficulty": problem_data["difficulty"],
+        "topic": problem_data.get("topic"),
+        "$vector": vector
+    }
+
     result = collection.insert_one(doc)
 
-    inserted_id = str(result.inserted_id)
+    vector_id = str(result.inserted_id)
+
     logger.info(
-        f"[AstraStore] Inserted ✓ | _id='{inserted_id}' | "
-        f"title='{problem_data.get('title')}'"
+        f"[AstraStore] Inserted ✓ | vector_id='{vector_id}' | mongo_id='{mongo_id}'"
     )
 
-    return {**problem_data, "_id": inserted_id}
+    return {
+        **problem_data,
+        "_id": mongo_id
+    }

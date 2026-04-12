@@ -2,13 +2,14 @@
 LLM Response Parser
 
 Responsible for:
-  1. Stripping any accidental markdown fences the LLM adds
+  1. Extracting the JSON object from any LLM wrapping (fences, preamble text, etc.)
   2. Parsing the raw string as JSON
   3. Validating all required fields are present
   4. Validating field-level constraints (difficulty enum, testCases length)
 """
 
 import json
+import re
 
 from app.errors.base_error import BaseError
 from app.utils.logger import get_logger
@@ -19,6 +20,54 @@ REQUIRED_FIELDS: frozenset[str] = frozenset(
     {"title", "description", "difficulty", "testCases", "editorial"}
 )
 VALID_DIFFICULTIES: frozenset[str] = frozenset({"easy", "medium", "hard"})
+
+
+def _extract_json(raw: str) -> str:
+    """
+    Robustly extract the outermost JSON object from an LLM response string.
+
+    Strategy (tried in order):
+      1. Direct parse — if the response is already clean JSON, use it as-is.
+      2. Regex extraction — find the first '{' and the last '}', grab everything
+         between them. This handles responses like:
+           - ```json\\n{...}\\n```
+           - ```\\n{...}\\n```
+           - "Here is the JSON:\\n{...}"
+           - any other preamble / postamble
+      3. Fence-strip fallback — original behaviour for edge cases.
+    """
+    cleaned = raw.strip()
+
+    # Strategy 1: already valid JSON
+    try:
+        json.loads(cleaned)
+        return cleaned
+    except json.JSONDecodeError:
+        pass
+
+    # Strategy 2: extract outermost { ... } block
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        candidate = cleaned[start : end + 1]
+        try:
+            json.loads(candidate)
+            return candidate
+        except json.JSONDecodeError:
+            pass
+
+    # Strategy 3: strip markdown fences (```json or ```) and retry
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        # Drop the opening fence line (```json / ```) and closing fence line
+        inner = "\n".join(lines[1:-1]).strip()
+        start = inner.find("{")
+        end = inner.rfind("}")
+        if start != -1 and end != -1:
+            return inner[start : end + 1]
+        return inner
+
+    return cleaned
 
 
 def parse_llm_response(raw: str) -> dict:
@@ -36,20 +85,18 @@ def parse_llm_response(raw: str) -> dict:
         BaseError(502): malformed JSON, missing fields, or invalid values.
     """
 
-    # ── 1. Strip markdown fences if present ──────────────────────────────────
-    cleaned = raw.strip()
-    if cleaned.startswith("```"):
-        lines = cleaned.splitlines()
-        cleaned = "\n".join(lines[1:-1]).strip()
+    # ── 1. Extract JSON from whatever the LLM wrapped it in ──────────────────
+    cleaned = _extract_json(raw)
 
     # ── 2. JSON decode ────────────────────────────────────────────────────────
     try:
         data: dict = json.loads(cleaned)
     except json.JSONDecodeError as exc:
         logger.error(
-            f"[ResponseParser] JSON decode failed: {exc}\n"
+            f"[ResponseParser] JSON decode failed after extraction: {exc}\n"
             f"Raw length: {len(raw)} chars | "
-            f"First 500 chars: {raw[:500]!r}"
+            f"First 500 chars of raw: {raw[:500]!r}\n"
+            f"Extracted candidate ({len(cleaned)} chars): {cleaned[:300]!r}"
         )
         raise BaseError(
             502,
