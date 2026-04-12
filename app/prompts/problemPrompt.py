@@ -15,8 +15,14 @@ RULE 1 — Output format
   Output a SINGLE valid JSON object.
   No markdown fences around the JSON. No text before or after it.
 
-RULE 2 — JSON must contain EXACTLY these five keys:
-  title  .  description  .  difficulty  .  testCases  .  editorial
+RULE 2 — JSON must contain EXACTLY these six keys:
+
+  title
+  description
+  difficulty
+  testCases
+  codeSnippets
+  editorial
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RULE 3 — "title"
@@ -85,26 +91,23 @@ RULE 6 — "testCases"
 
              
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RULE 7 — "code snippets"
+RULE 7 — "codeSnippets" (Evaluator Service Format)
+Return 3 objects (python, java, cpp). 
 
-  A JSON array of codeStubs: [
-    {
-      language: {
-        type: String,
-        enum: ['python', 'java', 'cpp'],
-        required: true,
-      },
-      startSnippet: {
-        type: String,
-        required: true,
-      },
-      endSnippet: {
-        type: String,
-        required: true,
-      },
-    },
-  ],
+For each language, provide:
+1. "startSnippet": Includes imports, class header, and function signature up to the opening brace.
+2. "midSnippet": This is a placeholder or a default "return 0" that my service replaces with the user's logic.
+3. "endSnippet": Includes the closing braces for the function/class AND the driver code to run the test cases.
 
+Example for Java:
+"codeSnippets": [
+  {{
+    "language": "java",
+    "startSnippet": "import java.util.*;\\npublic class Main {{\\n  public static void main(String[] args) {{\\n    // driver logic\\n  }}\\n}}\\nclass Solution {{\\n  public int solve(int n, int[] arr) {{",
+    "midSnippet": "    // Write your logic here",
+    "endSnippet": "  }}\\n}}"
+  }}
+]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RULE 8 — "editorial"
   Value is a Markdown string. Escape every newline as \n inside the JSON string.
@@ -145,7 +148,7 @@ RULE 8 — "editorial"
 SELF-CHECK — before outputting, verify every point:
 
   [ ] Output is a raw JSON object — no fences, no extra text outside it
-  [ ] All 5 keys present: title, description, difficulty, testCases, editorial
+  [ ] All 6 keys present: title, description, difficulty, testCases, codeSnippets, editorial
   [ ] testCases has EXACTLY 3 items
   [ ] testCases input/output values are plain strings — NO triple backtick fences inside them
   [ ] description examples match testCases values exactly

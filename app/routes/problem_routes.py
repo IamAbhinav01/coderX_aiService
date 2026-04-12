@@ -82,6 +82,12 @@ def generate_problem(body: GenerateRequest):
         "description": "...",
         "difficulty": "medium",
         "testCases": [...],
+        "codeSnippets": {
+            "languages": ["python", "java", "cpp"],
+            "startSnippet": "```{language}",
+            "endSnippet": "{language}```"
+        },
+
         "editorial": "...",
         "topic": "binary search"
       }

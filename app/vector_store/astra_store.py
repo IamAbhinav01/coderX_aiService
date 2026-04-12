@@ -1,5 +1,6 @@
 from app.config.db import db
 from app.utils.logger import get_logger
+import json
 
 logger = get_logger(__name__)
 
@@ -63,13 +64,17 @@ def find_similar_problem(
     )
     return None
 
-def insert_into_mongodb(problem_data: dict):
-    return 
+# def insert_into_mongodb(problem_data: dict):
+#     return 
 
 def insert_problem(problem_data: dict, vector: list[float]) -> dict:
     
-    logger.info("Storing new problem to MongoDB")
-    insert_into_mongodb(problem_data=problem_data)
+
+    with open("problem_debug.json", "w") as f:
+        json.dump(problem_data, f, indent=4)
+    logger.info(f"Problem data written to problem_debug.json")
+    # logger.info("Storing new problem to MongoDB")
+    # insert_into_mongodb(problem_data=problem_data)
 
     collection = _get_collection()
 
