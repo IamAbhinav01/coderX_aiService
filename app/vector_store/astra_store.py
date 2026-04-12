@@ -63,9 +63,14 @@ def find_similar_problem(
     )
     return None
 
+def insert_into_mongodb(problem_data: dict):
+    return 
 
 def insert_problem(problem_data: dict, vector: list[float]) -> dict:
     
+    logger.info("Storing new problem to MongoDB")
+    insert_into_mongodb(problem_data=problem_data)
+
     collection = _get_collection()
 
     # Merge the problem fields with the vector column

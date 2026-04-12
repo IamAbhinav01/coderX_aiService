@@ -83,8 +83,30 @@ RULE 6 — "testCases"
   - Index 2: Large/stress case described in plain text.
              Example: "n=100000, array is 1 to 100000 in ascending order"
 
+             
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RULE 7 — "editorial"
+RULE 7 — "code snippets"
+
+  A JSON array of codeStubs: [
+    {
+      language: {
+        type: String,
+        enum: ['python', 'java', 'cpp'],
+        required: true,
+      },
+      startSnippet: {
+        type: String,
+        required: true,
+      },
+      endSnippet: {
+        type: String,
+        required: true,
+      },
+    },
+  ],
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RULE 8 — "editorial"
   Value is a Markdown string. Escape every newline as \n inside the JSON string.
   Use EXACTLY these five sections in this order:
 
@@ -127,6 +149,7 @@ SELF-CHECK — before outputting, verify every point:
   [ ] testCases has EXACTLY 3 items
   [ ] testCases input/output values are plain strings — NO triple backtick fences inside them
   [ ] description examples match testCases values exactly
+  [ ] code snippets are included for Python, Java, and Cpp, with start and end snippets
   [ ] editorial has all 5 sections and is NOT empty
   [ ] difficulty is one of: easy | medium | hard
   [ ] Every newline inside JSON string values is escaped as \\n
