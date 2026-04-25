@@ -80,9 +80,13 @@ RULE 5 — "difficulty"
 RULE 6 — "testCases"
   A JSON array of EXACTLY 3 objects. Each object: {{"input": "...", "output": "..."}}
 
-  IMPORTANT — input and output values must be PLAIN STRINGS:
-    WRONG : "input": "```\\n8\\n5 1 4 3\\n```"   ← NO backtick fences inside values
-    CORRECT: "input": "8\\n5 1 4 3"               ← plain text only
+  IMPORTANT — input and output values must be FORMATTED FOR COMPETITIVE PROGRAMMING:
+    - DO NOT use JSON arrays, brackets like [ or ], or commas.
+    - Use ONLY space or newline-separated values.
+    - If the input contains an array, its length MUST be provided before the array elements!
+
+    WRONG : "input": "10\\n[[1, 6], [2, 10]]"           ← NO brackets or commas
+    CORRECT: "input": "10\\n2\\n1 6\\n2 10"               ← space-separated, with array length n=2
 
   - Index 0: Typical happy-path. Small, human-readable numbers.
   - Index 1: Edge case (n=1, all equal values, all negative, boundary).
@@ -95,9 +99,9 @@ RULE 7 — "codeSnippets" (Evaluator Service Format)
 Return 3 objects (python, java, cpp). 
 
 For each language, provide:
-1. "startSnippet": Includes imports, class header, and the function signature. The function MUST take strongly typed arguments (e.g., arrays, integers, strings), NOT a single raw combined string.
+1. "startSnippet": Includes all necessary imports (including those needed for the driver code like java.util.Scanner), class header, and the function signature. The function MUST take strongly typed arguments (e.g., arrays, integers, strings), NOT a single raw combined string. IMPORTANT: For Java, ALL import statements must be placed at the very top of the startSnippet. Do not place any imports in the endSnippet. ALSO for Java, the Solution class MUST NOT be public (use exactly `class Solution`, not `public class Solution`).
 2. "midSnippet": This is a placeholder or a default "return 0" that my service replaces with the user's logic.
-3. "endSnippet": Includes the closing braces for the function/class AND the driver code. The driver code MUST read the plain text input from standard input (stdin / sys.stdin / Scanner), parse it into the strongly typed variables required by the function signature, call the function, and print the formatted output.
+3. "endSnippet": Includes the closing braces for the function/class AND the driver code. The driver code MUST read the plain text input from standard input (stdin / sys.stdin / Scanner), parse it into the strongly typed variables required by the function signature, call the function, and print the formatted output. Do NOT include import statements here.
 
 Example for C++:
 "codeSnippets": [
