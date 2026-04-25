@@ -86,7 +86,7 @@ def generate_and_save_problem(topic: str, difficulty: str) -> dict:
     query_vector = embed_query(query_text)
 
   
-    existing = find_similar_problem(query_vector)
+    existing = find_similar_problem(query_vector, difficulty=normalised_difficulty)
     if existing:
         # Scrub internal AstraDB fields before returning to the caller
         existing.pop("$vector", None)

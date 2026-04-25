@@ -6,7 +6,7 @@ import json
 
 logger = get_logger(__name__)
 
-mongoDBRL = "http://localhost:3000/api/v1/problems"
+mongoDBRL = "http://localhost:4000/api/v1/problems"
 
 COLLECTION_NAME = "coderx_problems"
 
@@ -16,7 +16,7 @@ COLLECTION_NAME = "coderx_problems"
 #   - Same topic + difficulty  →  ~0.95–0.99 (always hits cache)
 #   - Related topic, same diff →  ~0.80–0.88 (borderline, may hit cache — that's fine)
 #   - Different topic          →  ~0.50–0.75 (always misses — generates new problem)
-SIMILARITY_THRESHOLD = 0.88
+SIMILARITY_THRESHOLD = 0.92
 
 
 def _get_collection():
@@ -26,6 +26,7 @@ def _get_collection():
 
 def find_similar_problem(
     query_vector: list[float],
+    difficulty: str,
     threshold: float = SIMILARITY_THRESHOLD,
 ) -> dict | None:
    
@@ -35,7 +36,7 @@ def find_similar_problem(
     # projection={"$vector": False} excludes the raw 1024-float array from
     # the network response — we don't need it back and it's ~8 KB per doc.
     cursor = collection.find(
-        filter={},
+        filter={"difficulty": difficulty},
         sort={"$vector": query_vector},
         limit=1,
         include_similarity=True,
@@ -70,20 +71,25 @@ def find_similar_problem(
 
 
 def transform_for_mongodb(problem_data: dict) -> dict:
+    lang_map = {"python": "Python", "cpp": "CPP", "java": "Java", "c++": "CPP", "go": "Go"}
+    code_snippets = []
+    for c in problem_data.get("codeSnippets", []):
+        raw_lang = c.get("language", "").lower()
+        frontend_lang = lang_map.get(raw_lang, c.get("language", ""))
+        code_snippets.append({
+            "language": frontend_lang,
+            "startSnippet": c.get("startSnippet", ""),
+            "midSnippet": c.get("midSnippet", ""),
+            "endSnippet": c.get("endSnippet", "")
+        })
+        
     return {
         "title": problem_data["title"],
         "description": problem_data["description"],
         "difficulty": problem_data["difficulty"],
         "testCases": problem_data["testCases"],
         "editorial": problem_data["editorial"],
-        "codeStubs": [
-            {
-                "language": c["language"],
-                "startSnippet": c["startSnippet"],
-                "endSnippet": c["endSnippet"]
-            }
-            for c in problem_data["codeSnippets"]
-        ]
+        "codeSnippets": code_snippets
     }
 def insert_into_mongodb(problem_data: dict):
 

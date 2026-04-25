@@ -95,17 +95,17 @@ RULE 7 — "codeSnippets" (Evaluator Service Format)
 Return 3 objects (python, java, cpp). 
 
 For each language, provide:
-1. "startSnippet": Includes imports, class header, and function signature up to the opening brace.
+1. "startSnippet": Includes imports, class header, and the function signature. The function MUST take strongly typed arguments (e.g., arrays, integers, strings), NOT a single raw combined string.
 2. "midSnippet": This is a placeholder or a default "return 0" that my service replaces with the user's logic.
-3. "endSnippet": Includes the closing braces for the function/class AND the driver code to run the test cases.
+3. "endSnippet": Includes the closing braces for the function/class AND the driver code. The driver code MUST read the plain text input from standard input (stdin / sys.stdin / Scanner), parse it into the strongly typed variables required by the function signature, call the function, and print the formatted output.
 
-Example for Java:
+Example for C++:
 "codeSnippets": [
   {{
-    "language": "java",
-    "startSnippet": "import java.util.*;\\npublic class Main {{\\n  public static void main(String[] args) {{\\n    // driver logic\\n  }}\\n}}\\nclass Solution {{\\n  public int solve(int n, int[] arr) {{",
-    "midSnippet": "    // Write your logic here",
-    "endSnippet": "  }}\\n}}"
+    "language": "cpp",
+    "startSnippet": "#include <bits/stdc++.h>\\nusing namespace std;\\n\\nclass Solution {{\\npublic:\\n    vector<int> solve(int n, vector<int>& arr) {{",
+    "midSnippet": "        // Write your logic here\\n        return {{}};",
+    "endSnippet": "    }}\\n}};\\n\\nint main() {{\\n    ios::sync_with_stdio(false);\\n    cin.tie(nullptr);\\n    int n;\\n    if (!(cin >> n)) return 0;\\n    vector<int> arr(n);\\n    for(int i=0; i<n; i++) cin >> arr[i];\\n    vector<int> res = Solution().solve(n, arr);\\n    for(int x : res) cout << x << \\" \\";\\n    cout << \\"\\\\n\\";\\n    return 0;\\n}}"
   }}
 ]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

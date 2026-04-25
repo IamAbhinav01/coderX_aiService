@@ -1,3 +1,5 @@
 .env
 .venv
 embeddings.json
+app.py
+github_repos.txt
