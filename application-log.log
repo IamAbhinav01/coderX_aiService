@@ -1,0 +1,4 @@
+2026-04-27 12:43:30 | WARNING  | app.routes.problem_routes | [Route] BaseError 500: Failed to save the generated problem to the database.
+medium' | testC2026-04-27 12:43:26 | INFO     | app.vector_store.astra_store | Storing new problem to MongoDB
+ — parsing output...
+2026-04-27 12:43:30 | ERROR    | app.services.question_generator | [QuestionGenerator] AstraDB insert failed: HTTPConnectionPool(host='localhost', port=4000): Max retries exceeded with url: /api/v1/problems (Caused by NewConnectionError("HTTPConnection(host='localhost', port=4000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
