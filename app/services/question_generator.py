@@ -31,6 +31,7 @@ from app.utils.embedder import embed_document, embed_query
 from app.vector_store.astra_store import find_similar_problem, insert_problem
 from app.utils.logger import get_logger
 from app.errors.base_error import BaseError
+from app.prompts.promptParser import problem_prompt as parser_prompt
 
 logger = get_logger(__name__)
 
@@ -47,6 +48,31 @@ VALID_DIFFICULTIES: list[str] = ["easy", "medium", "hard"]
 
 
 # ── Service function ──────────────────────────────────────────────────────────
+def prompt_to_inputs(input_prompt: str) -> dict:
+    try:
+        result = parser_prompt.invoke({"user_prompt": input_prompt})
+        model = get_groq_client()
+        response = model.invoke(result)
+        raw_output = response.content if hasattr(response, "content") else str(response)
+        
+        logger.info(f'user prompt is : {input_prompt} \n and the output generated from llm is {raw_output}\n')
+        
+        topic = ""
+        difficulty = ""
+        for line in raw_output.splitlines():
+            line = line.strip()
+            if line.lower().startswith("string:"):
+                topic = line.split(":", 1)[1].strip()
+            elif line.lower().startswith("difficulty:"):
+                difficulty = line.split(":", 1)[1].strip()
+                
+        return {"topic": topic, "difficulty": difficulty}
+    except BaseError:
+        raise
+    except Exception as e:
+        logger.error(f"[prompt_to_inputs] Failed to parse user prompt: {e}")
+        raise BaseError(500, "Failed to parse user prompt", str(e))
+
 
 def generate_and_save_problem(topic: str, difficulty: str) -> dict:
     # ── 1. Validate & normalise ───────────────────────────────────────────────

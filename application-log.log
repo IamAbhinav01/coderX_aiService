@@ -1,4 +1,13 @@
-2026-04-27 12:43:30 | WARNING  | app.routes.problem_routes | [Route] BaseError 500: Failed to save the generated problem to the database.
-medium' | testC2026-04-27 12:43:26 | INFO     | app.vector_store.astra_store | Storing new problem to MongoDB
- — parsing output...
-2026-04-27 12:43:30 | ERROR    | app.services.question_generator | [QuestionGenerator] AstraDB insert failed: HTTPConnectionPool(host='localhost', port=4000): Max retries exceeded with url: /api/v1/problems (Caused by NewConnectionError("HTTPConnection(host='localhost', port=4000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+2026-05-01 11:43:49 | WARNING  | app.routes.problem_routes | [Route] BaseError 500: Failed to save the generated problem to the database.
+culty='medium' | test2026-05-02026-05-01 11:48:00 | INFO     | app.utils.response_parser | [ResponseParser] Valid response | title='Find the Number of Provinces' | difficulty='medium' | testCases=3
+candidate: 'Dynamic Programming Puzzle' | similarity=0.8587 | threshold=0.92
+2026-05-01 11:48:00 | INFO     | app.vector_store.astra_store | Storing new problem to MongoDB
+ims=768
+2026-05-01 11:48:00 | INFO     | app.utils.embedder | [Embedder] Document embedded | dims=768
+straDB insert failed: HTTPConnectionPool(host='localhost', port=4000): Max retries exceeded with url: /api/v1/problems (Caused by NewConnectionError("HTTPConnection(host='localhost', port=4000): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it"))
+2026-05-01 11:47:52 | INFO     | app.services.question_generator | user prompt is : generate me a graph problem no of province 
+ and the output generated from llm is string: Find the number of provinces in a graph
+difficulty: Medium
+
+2026-05-01 11:47:52 | INFO     | app.services.question_generator | [QuestionGenerator] Request | topic="find the number of provinces in a graph" | difficulty="medium"
+2026-05-01 11:48:00 | INFO     | app.services.question_generator | [QuestionGenerator] LLM responded — parsing output...
