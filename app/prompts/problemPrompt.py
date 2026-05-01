@@ -1,167 +1,303 @@
 from langchain_core.prompts import PromptTemplate
 
-problem_prompt_template = """You are an expert competitive-programming problem setter for CoderX, a platform similar to LeetCode.
+problem_prompt_template = """You are an expert competitive-programming problem setter for CoderX.
 
-Generate ONE completely original coding problem matching the specification below.
+Generate ONE original coding problem for the given topic and difficulty.
 
 Topic      : {topic}
 Difficulty : {difficulty}
 
-══════════════════════════════════════════════════════════════
-MANDATORY OUTPUT RULES  —  read every rule before generating
-══════════════════════════════════════════════════════════════
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MANDATORY PRE-GENERATION SCRATCHPAD  (never appears in output)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+You MUST mentally execute every step below before writing any JSON.
+Skipping any step will produce wrong test cases.
 
-RULE 1 — Output format
-  Output a SINGLE valid JSON object.
-  No markdown fences around the JSON. No text before or after it.
+STEP 1 — Write the reference Python solution in full, using concrete
+  variable names. Do not write pseudocode.
 
-RULE 2 — JSON must contain EXACTLY these six keys:
+STEP 2 — Choose test case 0 input values (small, 4–8 elements).
+  Simulate the reference solution on those values line by line.
+  Write down every intermediate variable. Record the final return value.
+  That return value is testCases[0].output.
 
-  title
-  description
-  difficulty
-  testCases
-  codeSnippets
-  editorial
+STEP 3 — Choose test case 1 input (a meaningful edge case: n=1,
+  all identical values, all negatives, or single maximum element).
+  Simulate the reference solution on it line by line.
+  Record the final return value. That is testCases[1].output.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RULE 3 — "title"
-  A short, catchy problem title (3–7 words).
-  Example: "Find the Missing Number"
+STEP 4 — Choose test case 2 input (a MODERATE stress case: n between
+  100 and 1000, with a pattern like 1..n ascending, so the correct
+  answer can be computed by a closed-form formula).
+  Compute the output with the closed-form formula — show the arithmetic.
+  Double-check: run the reference solution mentally or algebraically.
+  Record the exact integer/string result. That is testCases[2].output.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RULE 4 — "description"
-  Value is a Markdown string. Escape every newline as \n inside the JSON string.
-  Use EXACTLY these four sections in this order:
+STEP 5 — Verify all three outputs are self-consistent with the
+  reference solution and with each other. If any output is uncertain,
+  REDO that step until certain.
 
-  SECTION 1 — Problem Statement
-    ## Problem Statement
-    [3–5 sentences in plain English. Define the task clearly.
-     State what the input is, what must be computed, and what to return.]
+STEP 6 — Verify that the description Examples section is word-for-word
+  identical to the testCases input/output values.
 
-  SECTION 2 — Examples
-    ## Examples
-    [Copy the input/output values DIRECTLY from your testCases array — keep them identical.]
-    [Do NOT wrap input/output values in triple backtick fences here.]
-    [Format each example exactly like this:]
+Only after STEPS 1-6 are complete, write the JSON.
 
-    **Example 1:**
-    - Input: [plain text — same string as testCases[0].input]
-    - Output: [plain text — same string as testCases[0].output]
-    - Explanation: [one sentence walkthrough]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT CONTRACT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Output ONE raw JSON object — no markdown fences, no text before or after.
+The JSON must pass json.loads() without any pre-processing.
+Every newline inside a JSON string value  →  escape as \\n
+Every double-quote inside a JSON string  →  escape as \\"
+Every backslash inside a JSON string     →  escape as \\\\
 
-    **Example 2:**
-    - Input: [plain text — same string as testCases[1].input]
-    - Output: [plain text — same string as testCases[1].output]
-    - Explanation: [one sentence walkthrough]
+The object must have EXACTLY these 6 top-level keys:
+  "title"         string
+  "description"   string  (Markdown, all newlines escaped as \\n)
+  "difficulty"    string
+  "testCases"     array   (EXACTLY 3 objects)
+  "codeSnippets"  array   (EXACTLY 3 objects)
+  "editorial"     string  (Markdown, all newlines escaped as \\n)
 
-    **Example 3:**
-    - Input: [plain text description of testCases[2] — do NOT paste thousands of numbers]
-    - Output: [expected output]
-    - Explanation: [one sentence about what this stress case tests]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+KEY — "title"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+A short, catchy problem name: 3–7 words.
 
-  SECTION 3 — Constraints
-    ## Constraints
-    - `1 ≤ n ≤ ...`
-    - `-10^9 ≤ A[i] ≤ 10^9`
-    - [One line stating the expected time complexity, e.g. "An O(n) solution is expected."]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+KEY — "difficulty"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Exactly one of (lowercase):  easy | medium | hard
+Must equal: {difficulty}
 
-  SECTION 4 — Function Signature
-    ## Function Signature
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+KEY — "testCases"   ★ MOST CRITICAL SECTION ★
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+An array of EXACTLY 3 objects.
+Every object has EXACTLY 2 keys:
+  "input"   string  —  the raw text fed to the program's stdin
+  "output"  string  —  the exact text the program must print to stdout
+
+ALL THREE test cases use this same structure.
+ALL THREE inputs are real, concrete stdin strings — not descriptions,
+not placeholders, not sentences like "n=100000 ascending".
+
+── INPUT STRING FORMAT ──────────────────────────────────────────────
+The input string format MUST exactly match what the driver code reads.
+  ✗  NO brackets:  [ ]  or  ( )
+  ✗  NO commas
+  ✗  NO Python / Java / C++ syntax
+  ✗  NO natural-language descriptions
+  ✓  Integers separated by spaces on one line
+  ✓  Multiple lines separated by the escape sequence  \\n
+  ✓  If the problem reads n then an array:  first line is n,
+     second line is n space-separated integers
+
+  CORRECT:  "5\\n3 1 4 1 5"
+  WRONG:    "5\\n[3, 1, 4, 1, 5]"
+  WRONG:    "n=5, array is 1 to 5 ascending"
+
+── OUTPUT STRING FORMAT ─────────────────────────────────────────────
+The output string must be the EXACT stdout the correct program prints.
+  • Single integer answer  →  just that integer as a string, e.g. "42"
+  • Multiple values        →  space-separated or newline-separated,
+                               matching what the driver prints
+  • No trailing spaces. No extra newlines beyond what the driver emits.
+
+── CORRECTNESS REQUIREMENT — THIS IS NON-NEGOTIABLE ────────────────
+Every output value must be provably correct.
+
+  testCases[0].output  —  obtained by manually simulating the reference
+    solution step by step on testCases[0].input. Show every variable in
+    the SCRATCHPAD. No guessing.
+
+  testCases[1].output  —  same: step-by-step simulation on testCases[1].
+    input in the SCRATCHPAD. No guessing.
+
+  testCases[2].output  —  testCases[2] uses a MODERATE input (n = 100
+    to 1000) with a predictable pattern (e.g. 1..n ascending) so the
+    correct answer can be derived by a closed-form formula.
+    In the SCRATCHPAD: write the formula, substitute n, compute the
+    exact integer. That integer is testCases[2].output.
+    DO NOT use large n (100000+) — keep it computable and embeddable.
+
+  THE GOLDEN RULE:
+  If you are not 100% certain what the output is, make the input
+  simpler until you ARE certain. A correct small test beats a wrong
+  large one every time.
+
+── TEST CASE ROLES ──────────────────────────────────────────────────
+  testCases[0]  Typical happy-path. Small input, 4–8 elements.
+                Easy for a human to verify by hand.
+
+  testCases[1]  Meaningful edge case. Choose ONE of:
+                  • n = 1  (single element)
+                  • All elements identical
+                  • All elements negative
+                  • Minimum or maximum boundary value only
+
+  testCases[2]  Moderate stress. n between 100 and 1000.
+                Use a pattern whose answer follows a closed formula
+                (e.g. consecutive integers, all same value).
+                The full input string IS embedded in the JSON —
+                keep it to at most ~50 numbers so it stays readable.
+                If n > 50, describe the pattern in the SCRATCHPAD
+                and embed only a representative prefix... actually
+                for n > 50 choose n ≤ 50 for the stress case so the
+                entire input fits cleanly in the JSON string.
+
+  REVISED STRESS RULE: Keep testCases[2].n ≤ 50.
+  Reason: the entire input must be a valid JSON string value.
+  A stress test with n=50 and a closed-form answer is far better than
+  a stress test with n=100000 and a guessed or wrong answer.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+KEY — "description"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Markdown string. Escape every newline as \\n.
+Exactly 4 sections in this order:
+
+## Problem Statement
+3–5 plain-English sentences describing the task.
+State what the input is, what must be computed, and what to return.
+No code. No formulas.
+
+## Examples
+
+**Example 1:**
+- Input: <paste testCases[0].input exactly — character for character>
+- Output: <paste testCases[0].output exactly>
+- Explanation: <one sentence walkthrough>
+
+**Example 2:**
+- Input: <paste testCases[1].input exactly — character for character>
+- Output: <paste testCases[1].output exactly>
+- Explanation: <one sentence walkthrough>
+
+**Example 3:**
+- Input: <paste testCases[2].input exactly — character for character>
+- Output: <paste testCases[2].output exactly>
+- Explanation: <one sentence: what does this case stress-test?>
+
+RULES:
+  • Do NOT wrap input/output values in backtick fences.
+  • The input in Example N must be byte-for-byte identical to
+    testCases[N-1].input. Any difference is a bug.
+
+## Constraints
+- `1 ≤ n ≤ <appropriate max>`
+- `<element value range>`
+- An O(<complexity>) solution is expected.
+
+## Function Signature
 ```python
-    def solve(...) -> ...:
+def solve(<params: types>) -> <return type>:
+```
+This signature must be identical to the Python startSnippet's
+function signature.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+KEY — "codeSnippets"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Array of EXACTLY 3 objects in this order: python, java, cpp.
+Each object has EXACTLY 4 keys:
+  "language"     "python" | "java" | "cpp"
+  "startSnippet" all imports + class header + opening of function
+  "midSnippet"   placeholder body the service replaces with user code
+  "endSnippet"   closing braces + complete driver / main block
+
+DRIVER CODE RULES (endSnippet):
+  • Reads stdin in the exact format of testCases[*].input.
+  • Parses into correctly typed variables.
+  • Calls solve() and prints the result.
+  • Output must be character-for-character identical to
+    testCases[*].output (same spacing, same newlines, no trailing spaces).
+
+JAVA:
+  • ALL import statements in startSnippet — none in endSnippet.
+  • Class declaration: `class Solution`  (NOT public class Solution).
+  • Driver in endSnippet: `class Main {{ public static void main(String[] args) }}`
+
+PYTHON:
+  • startSnippet ends on the `def solve(...):` line.
+  • endSnippet is the complete `if __name__ == "__main__":` block.
+
+C++:
+  • startSnippet starts with `#include <bits/stdc++.h>\\nusing namespace std;`
+  • endSnippet contains the complete `int main() {{ }}` block.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+KEY — "editorial"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Markdown string. Escape every newline as \\n. Exactly 5 sections:
+
+## Intuition
+2–3 sentences: key observation, why brute-force fails, what helps.
+
+## Approach
+**<Algorithm name>**
+3–5 sentences explaining the approach. No code yet.
+
+## Algorithm
+1. <Step with variable names>
+2. ...
+N. What is returned?
+
+## Complexity Analysis
+| | Complexity | Reason |
+|---|---|---|
+| **Time**  | O(...) | one-line reason |
+| **Space** | O(...) | one-line reason |
+
+## Reference Implementation
+```python
+# Complete, correct Python solution.
+# Meaningful variable names. Comment non-obvious lines.
+# Running this on testCases[0].input must produce testCases[0].output.
+# Running this on testCases[1].input must produce testCases[1].output.
+# Running this on testCases[2].input must produce testCases[2].output.
 ```
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RULE 5 — "difficulty"
-  Must be exactly one of (lowercase):  easy  |  medium  |  hard
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FINAL SELF-CHECK — tick every box before outputting
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+JSON shape
+  [ ] Raw JSON object only — no fences, no surrounding text
+  [ ] Exactly 6 top-level keys
+  [ ] json.loads() succeeds without pre-processing
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RULE 6 — "testCases"
-  A JSON array of EXACTLY 3 objects. Each object: {{"input": "...", "output": "..."}}
+testCases
+  [ ] Exactly 3 items, each with EXACTLY "input" and "output" keys
+  [ ] All 3 inputs are concrete stdin strings — no sentences, no brackets
+  [ ] testCases[0]: output verified by step-by-step simulation
+  [ ] testCases[1]: output verified by step-by-step simulation
+  [ ] testCases[2]: n ≤ 50; output verified by closed-form formula
+  [ ] No [ ] brackets or commas in any input string
+  [ ] Array lengths precede their element lines
 
-  IMPORTANT — input and output values must be FORMATTED FOR COMPETITIVE PROGRAMMING:
-    - DO NOT use JSON arrays, brackets like [ or ], or commas.
-    - Use ONLY space or newline-separated values.
-    - If the input contains an array, its length MUST be provided before the array elements!
+description
+  [ ] 4 sections in order: Problem Statement, Examples, Constraints,
+      Function Signature
+  [ ] Example 1 input/output = testCases[0] values verbatim
+  [ ] Example 2 input/output = testCases[1] values verbatim
+  [ ] Example 3 input/output = testCases[2] values verbatim
+  [ ] No backtick fences around input/output values in Examples section
 
-    WRONG : "input": "10\\n[[1, 6], [2, 10]]"           ← NO brackets or commas
-    CORRECT: "input": "10\\n2\\n1 6\\n2 10"               ← space-separated, with array length n=2
+codeSnippets
+  [ ] 3 snippets: python, java, cpp (in that order)
+  [ ] Java: all imports in startSnippet; class is `class Solution`
+  [ ] Driver parses stdin in the same format as testCases inputs
+  [ ] Driver output format matches testCases output strings exactly
 
-  - Index 0: Typical happy-path. Small, human-readable numbers.
-  - Index 1: Edge case (n=1, all equal values, all negative, boundary).
-  - Index 2: Large/stress case described in plain text.
-             Example: "n=100000, array is 1 to 100000 in ascending order"
+editorial
+  [ ] 5 sections present and non-empty
+  [ ] Reference Implementation is complete and correct for all 3 cases
 
-             
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RULE 7 — "codeSnippets" (Evaluator Service Format)
-Return 3 objects (python, java, cpp). 
+Escaping
+  [ ] All newlines in string values escaped as \\n
+  [ ] All double-quotes in string values escaped as \\"
+  [ ] All backslashes in string values escaped as \\\\
 
-For each language, provide:
-1. "startSnippet": Includes all necessary imports (including those needed for the driver code like java.util.Scanner), class header, and the function signature. The function MUST take strongly typed arguments (e.g., arrays, integers, strings), NOT a single raw combined string. IMPORTANT: For Java, ALL import statements must be placed at the very top of the startSnippet. Do not place any imports in the endSnippet. ALSO for Java, the Solution class MUST NOT be public (use exactly `class Solution`, not `public class Solution`).
-2. "midSnippet": This is a placeholder or a default "return 0" that my service replaces with the user's logic.
-3. "endSnippet": Includes the closing braces for the function/class AND the driver code. The driver code MUST read the plain text input from standard input (stdin / sys.stdin / Scanner), parse it into the strongly typed variables required by the function signature, call the function, and print the formatted output. Do NOT include import statements here.
-
-Example for C++:
-"codeSnippets": [
-  {{
-    "language": "cpp",
-    "startSnippet": "#include <bits/stdc++.h>\\nusing namespace std;\\n\\nclass Solution {{\\npublic:\\n    vector<int> solve(int n, vector<int>& arr) {{",
-    "midSnippet": "        // Write your logic here\\n        return {{}};",
-    "endSnippet": "    }}\\n}};\\n\\nint main() {{\\n    ios::sync_with_stdio(false);\\n    cin.tie(nullptr);\\n    int n;\\n    if (!(cin >> n)) return 0;\\n    vector<int> arr(n);\\n    for(int i=0; i<n; i++) cin >> arr[i];\\n    vector<int> res = Solution().solve(n, arr);\\n    for(int x : res) cout << x << \\" \\";\\n    cout << \\"\\\\n\\";\\n    return 0;\\n}}"
-  }}
-]
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RULE 8 — "editorial"
-  Value is a Markdown string. Escape every newline as \n inside the JSON string.
-  Use EXACTLY these five sections in this order:
-
-  SECTION 1 — Intuition
-    ## Intuition
-    [2–3 sentences. What key observation makes this solvable efficiently?
-     Why does the brute force fail? What pattern or data structure helps?]
-
-  SECTION 2 — Approach
-    ## Approach
-    **[Algorithm name, e.g. Monotonic Stack / Two Pointers / Binary Search]**
-    [3–5 sentences explaining the method conceptually. No code yet.]
-
-  SECTION 3 — Algorithm
-    ## Algorithm
-    1. [Step 1 — specific, mention variable names]
-    2. [Step 2]
-    3. [Step 3]
-    4. [Final step — what is returned?]
-
-  SECTION 4 — Complexity Analysis
-    ## Complexity Analysis
-    | | Complexity | Reason |
-    |---|---|---|
-    | **Time**  | O(...) | [one-line justification] |
-    | **Space** | O(...) | [one-line justification] |
-
-  SECTION 5 — Reference Implementation
-    ## Reference Implementation
-```python
-    [Complete, correct, clean Python solution.
-     Meaningful variable names. Comment every non-obvious line.]
-```
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SELF-CHECK — before outputting, verify every point:
-
-  [ ] Output is a raw JSON object — no fences, no extra text outside it
-  [ ] All 6 keys present: title, description, difficulty, testCases, codeSnippets, editorial
-  [ ] testCases has EXACTLY 3 items
-  [ ] testCases input/output values are plain strings — NO triple backtick fences inside them
-  [ ] description examples match testCases values exactly
-  [ ] code snippets are included for Python, Java, and Cpp, with start and end snippets
-  [ ] editorial has all 5 sections and is NOT empty
-  [ ] difficulty is one of: easy | medium | hard
-  [ ] Every newline inside JSON string values is escaped as \\n
-
-══════════════════════════════════════════════════════════════
 Generate the JSON now:"""
 
 problem_prompt = PromptTemplate(
