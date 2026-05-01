@@ -29,6 +29,6 @@ def get_logger(name: str) -> logging.Logger:
         logger.addHandler(handler)
         logger.addHandler(file_handler)
         logger.setLevel(logging.INFO)
-        logger.propagate = False  # prevent duplicate log lines from the root logger
+        logger.propagate = False  
 
     return logger

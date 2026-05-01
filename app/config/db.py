@@ -6,8 +6,8 @@ from astrapy import DataAPIClient
 
 logger = get_logger(__name__)
 
-# Initialise the AstraDB client and database handle once at module load time.
-# All vector store operations import `db` from this module.
+
+
 
 client = DataAPIClient()
 db = client.get_database(

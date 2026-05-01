@@ -10,12 +10,6 @@ mongoDBRL = "http://localhost:4000/api/v1/problems"
 
 COLLECTION_NAME = "coderx_problems"
 
-# Cosine similarity threshold for cache hits.
-# A score of 1.0 means identical vectors; 0.0 means orthogonal (completely dissimilar).
-# 0.88 was chosen because:
-#   - Same topic + difficulty  →  ~0.95–0.99 (always hits cache)
-#   - Related topic, same diff →  ~0.80–0.88 (borderline, may hit cache — that's fine)
-#   - Different topic          →  ~0.50–0.75 (always misses — generates new problem)
 SIMILARITY_THRESHOLD = 0.92
 
 
@@ -32,9 +26,6 @@ def find_similar_problem(
    
     collection = _get_collection()
 
-    # sort={"$vector": ...} triggers ANN search.
-    # projection={"$vector": False} excludes the raw 1024-float array from
-    # the network response — we don't need it back and it's ~8 KB per doc.
     cursor = collection.find(
         filter={"difficulty": difficulty},
         sort={"$vector": query_vector},
@@ -106,7 +97,7 @@ def insert_into_mongodb(problem_data: dict):
 
     data = response.json()
 
-    mongo_id = data["data"]["_id"]   # depends on your API response
+    mongo_id = data["data"]["_id"]   
 
     logger.info(
         f"[MongoService] Inserted ✓ | mongo_id='{mongo_id}'"

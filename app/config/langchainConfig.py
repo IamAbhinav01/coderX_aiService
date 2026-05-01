@@ -27,8 +27,8 @@ def get_groq_client() -> ChatGroq:
             groq_api_key=GROQ_API_KEY,
             model_name=GROQ_MODEL,
             temperature=GROQ_TEMPERATURE,
-            max_tokens=GROQ_MAX_TOKENS,  # prevents truncation mid-JSON for long editorials
-            # NOTE: response_format=json_object intentionally NOT set — see previous comment.
+            max_tokens=GROQ_MAX_TOKENS,  
+            
         )
 
     return _llm_instance

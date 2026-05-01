@@ -26,7 +26,7 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["Problems"])
 
 
-# ── Request schema ────────────────────────────────────────────────────────────
+
 
 class GenerateRequest(BaseModel):
     """
@@ -42,7 +42,7 @@ class GenerateRequest(BaseModel):
         return value.strip()
 
 
-# ── Route handler ─────────────────────────────────────────────────────────────
+
 @router.post(
         "/generate/inputs",
         summary="Parse a raw prompt and generate the corresponding coding problem",

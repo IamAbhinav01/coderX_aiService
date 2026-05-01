@@ -1,0 +1,5 @@
+2026-05-02 02:52:48 | INFO     | app.utils.response_parser | [ResponseParser] Valid response | title='Insert Interval' | difficulty='medium' | testCases=3
+2026-05-02 02:52:48 | INFO     | app.vector_store.astra_store | Storing new problem to MongoDB
+ 02:52:17 | INFO     | app.utils.embedder | [Embedder] Query embedded | dims=768
+2026-05-02 02:52:48 | INFO     | app.utils.embedder | [Embedder] Document embedded | dims=768
+ 02:52:48 | INFO     | app.services.question_generator | [QuestionGenerator] LLM responded — parsing output...

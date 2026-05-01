@@ -38,14 +38,14 @@ def _extract_json(raw: str) -> str:
     """
     cleaned = raw.strip()
 
-    # Strategy 1: already valid JSON
+    
     try:
         json.loads(cleaned)
         return cleaned
     except json.JSONDecodeError:
         pass
 
-    # Strategy 2: extract outermost { ... } block
+    
     start = cleaned.find("{")
     end = cleaned.rfind("}")
     if start != -1 and end != -1 and end > start:
@@ -56,10 +56,10 @@ def _extract_json(raw: str) -> str:
         except json.JSONDecodeError:
             pass
 
-    # Strategy 3: strip markdown fences (```json or ```) and retry
+    
     if cleaned.startswith("```"):
         lines = cleaned.splitlines()
-        # Drop the opening fence line (```json / ```) and closing fence line
+        
         inner = "\n".join(lines[1:-1]).strip()
         start = inner.find("{")
         end = inner.rfind("}")
@@ -85,10 +85,10 @@ def parse_llm_response(raw: str) -> dict:
         BaseError(502): malformed JSON, missing fields, or invalid values.
     """
 
-    # ── 1. Extract JSON from whatever the LLM wrapped it in ──────────────────
+    
     cleaned = _extract_json(raw)
 
-    # ── 2. JSON decode ────────────────────────────────────────────────────────
+    
     try:
         data: dict = json.loads(cleaned)
     except json.JSONDecodeError as exc:
@@ -104,7 +104,7 @@ def parse_llm_response(raw: str) -> dict:
             str(exc),
         )
 
-    # ── 3. Required fields check ──────────────────────────────────────────────
+    
     missing = REQUIRED_FIELDS - set(data.keys())
     if missing:
         logger.error(f"[ResponseParser] Missing fields: {sorted(missing)}")
@@ -113,7 +113,7 @@ def parse_llm_response(raw: str) -> dict:
             f"AI response is missing required fields: {sorted(missing)}.",
         )
 
-    # ── 4. testCases integrity ────────────────────────────────────────────────
+    
     if not isinstance(data["testCases"], list) or len(data["testCases"]) != 3:
         raise BaseError(
             502,
@@ -128,7 +128,7 @@ def parse_llm_response(raw: str) -> dict:
                 f"testCase at index {i} is missing 'input' or 'output' field.",
             )
 
-    # ── 5. Difficulty enum ────────────────────────────────────────────────────
+    
     if data.get("difficulty") not in VALID_DIFFICULTIES:
         raise BaseError(
             502,

@@ -35,7 +35,7 @@ from app.prompts.promptParser import problem_prompt as parser_prompt
 
 logger = get_logger(__name__)
 
-# ── Constants ─────────────────────────────────────────────────────────────────
+
 
 VALID_TOPICS: list[str] = [
     "arrays", "strings", "linked lists", "stacks", "queues",
@@ -47,7 +47,7 @@ VALID_TOPICS: list[str] = [
 VALID_DIFFICULTIES: list[str] = ["easy", "medium", "hard"]
 
 
-# ── Service function ──────────────────────────────────────────────────────────
+
 def prompt_to_inputs(input_prompt: str) -> dict:
     try:
         result = parser_prompt.invoke({"user_prompt": input_prompt})
@@ -75,7 +75,7 @@ def prompt_to_inputs(input_prompt: str) -> dict:
 
 
 def generate_and_save_problem(topic: str, difficulty: str) -> dict:
-    # ── 1. Validate & normalise ───────────────────────────────────────────────
+    
     if not topic or not isinstance(topic, str) or not topic.strip():
         raise BaseError(
             400,
@@ -114,7 +114,7 @@ def generate_and_save_problem(topic: str, difficulty: str) -> dict:
   
     existing = find_similar_problem(query_vector, difficulty=normalised_difficulty)
     if existing:
-        # Scrub internal AstraDB fields before returning to the caller
+        
         existing.pop("$vector", None)
         existing.pop("$similarity", None)
         if "_id" in existing:
@@ -162,7 +162,7 @@ def generate_and_save_problem(topic: str, difficulty: str) -> dict:
     )
     doc_vector = embed_document(doc_text)
 
-    # ── 8. Persist to AstraDB ─────────────────────────────────────────────────
+    
     try:
         saved_problem = insert_problem(problem_data, doc_vector)
 
@@ -183,5 +183,5 @@ def generate_and_save_problem(topic: str, difficulty: str) -> dict:
         f'title="{saved_problem.get("title")}"'
     )
 
-    # ── 9. Return ─────────────────────────────────────────────────────────────
+    
     return {"source": "generated", "problem": saved_problem}

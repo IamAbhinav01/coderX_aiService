@@ -1,7 +1,7 @@
 from astrapy import DataAPIClient
 from astrapy.constants import VectorMetric
 from astrapy.info import CollectionDefinition, CollectionVectorOptions
-from app.config.server import ASTRA_DB_APPLICATION_TOKEN, ASTRA_DB_APPLICATION_URL  # FIXED: was incorrectly importing from app.config.db (which never re-exported these)
+from app.config.server import ASTRA_DB_APPLICATION_TOKEN, ASTRA_DB_APPLICATION_URL  
 client = DataAPIClient(ASTRA_DB_APPLICATION_TOKEN)
 
 database = client.get_database(ASTRA_DB_APPLICATION_URL)

@@ -157,12 +157,12 @@ KEY — "description"
 Markdown string. Escape every newline as \\n.
 Exactly 4 sections in this order:
 
-## Problem Statement
+
 3–5 plain-English sentences describing the task.
 State what the input is, what must be computed, and what to return.
 No code. No formulas.
 
-## Examples
+
 
 **Example 1:**
 - Input: <paste testCases[0].input exactly — character for character>
@@ -184,12 +184,12 @@ RULES:
   • The input in Example N must be byte-for-byte identical to
     testCases[N-1].input. Any difference is a bug.
 
-## Constraints
+
 - `1 ≤ n ≤ <appropriate max>`
 - `<element value range>`
 - An O(<complexity>) solution is expected.
 
-## Function Signature
+
 ```python
 def solve(<params: types>) -> <return type>:
 ```
@@ -223,7 +223,7 @@ PYTHON:
   • endSnippet is the complete `if __name__ == "__main__":` block.
 
 C++:
-  • startSnippet starts with `#include <bits/stdc++.h>\\nusing namespace std;`
+  • startSnippet starts with `
   • endSnippet contains the complete `int main() {{ }}` block.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -231,31 +231,31 @@ KEY — "editorial"
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Markdown string. Escape every newline as \\n. Exactly 5 sections:
 
-## Intuition
+
 2–3 sentences: key observation, why brute-force fails, what helps.
 
-## Approach
+
 **<Algorithm name>**
 3–5 sentences explaining the approach. No code yet.
 
-## Algorithm
+
 1. <Step with variable names>
 2. ...
 N. What is returned?
 
-## Complexity Analysis
+
 | | Complexity | Reason |
 |---|---|---|
 | **Time**  | O(...) | one-line reason |
 | **Space** | O(...) | one-line reason |
 
-## Reference Implementation
+
 ```python
-# Complete, correct Python solution.
-# Meaningful variable names. Comment non-obvious lines.
-# Running this on testCases[0].input must produce testCases[0].output.
-# Running this on testCases[1].input must produce testCases[1].output.
-# Running this on testCases[2].input must produce testCases[2].output.
+
+
+
+
+
 ```
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
