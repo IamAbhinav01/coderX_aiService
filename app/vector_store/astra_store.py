@@ -2,11 +2,12 @@ import requests
 
 from app.config.db import db
 from app.utils.logger import get_logger
+from app.config.server import MONGODB_URL
 import json
 
 logger = get_logger(__name__)
 
-mongoDBRL = "http://localhost:4000/api/v1/problems"
+mongoDBRL = MONGODB_URL
 
 COLLECTION_NAME = "coderx_problems"
 

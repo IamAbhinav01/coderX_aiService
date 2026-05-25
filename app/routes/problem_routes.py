@@ -1,16 +1,4 @@
-"""
-FastAPI Router — Problem Generation
 
-Mirrors the Express router pattern from the JS codebase.
-
-Route:
-    POST /api/v1/generate/inputs
-
-The route handler is a plain `def` (not `async def`) because the service
-layer makes synchronous calls to voyageai and astrapy (both are sync SDKs).
-FastAPI automatically offloads sync handlers to a thread pool, so the
-event loop is never blocked.
-"""
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
@@ -29,9 +17,6 @@ router = APIRouter(prefix="/api/v1", tags=["Problems"])
 
 
 class GenerateRequest(BaseModel):
-    """
-    Pydantic model for the POST /generate/problem request body.
-    """
     user_prompt: str
 
     @field_validator("user_prompt", mode="before")

@@ -11,7 +11,6 @@ class BaseError(Exception):
         self.detail = detail
 
     def to_dict(self) -> dict:
-        """Serialise the error to a JSON-safe dict for HTTP responses."""
         payload: dict = {
             "error": self.message,
             "status_code": self.status_code,

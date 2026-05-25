@@ -1,12 +1,4 @@
-"""
-LLM Response Parser
 
-Responsible for:
-  1. Extracting the JSON object from any LLM wrapping (fences, preamble text, etc.)
-  2. Parsing the raw string as JSON
-  3. Validating all required fields are present
-  4. Validating field-level constraints (difficulty enum, testCases length)
-"""
 
 import json
 import re
@@ -23,19 +15,7 @@ VALID_DIFFICULTIES: frozenset[str] = frozenset({"easy", "medium", "hard"})
 
 
 def _extract_json(raw: str) -> str:
-    """
-    Robustly extract the outermost JSON object from an LLM response string.
-
-    Strategy (tried in order):
-      1. Direct parse — if the response is already clean JSON, use it as-is.
-      2. Regex extraction — find the first '{' and the last '}', grab everything
-         between them. This handles responses like:
-           - ```json\\n{...}\\n```
-           - ```\\n{...}\\n```
-           - "Here is the JSON:\\n{...}"
-           - any other preamble / postamble
-      3. Fence-strip fallback — original behaviour for edge cases.
-    """
+    
     cleaned = raw.strip()
 
     
@@ -71,19 +51,6 @@ def _extract_json(raw: str) -> str:
 
 
 def parse_llm_response(raw: str) -> dict:
-    """
-    Parse and validate the raw LLM output string into a problem dictionary.
-
-    Args:
-        raw: the raw string returned by the LLM
-
-    Returns:
-        A validated dict with keys:
-            title, description, difficulty, testCases, editorial
-
-    Raises:
-        BaseError(502): malformed JSON, missing fields, or invalid values.
-    """
 
     
     cleaned = _extract_json(raw)

@@ -5,16 +5,6 @@ _llm_instance: ChatGroq | None = None
 
 
 def get_groq_client() -> ChatGroq:
-    """
-    Singleton factory for the ChatGroq LLM client.
-
-    The client is constructed once on first call and reused for every
-    subsequent request — avoids the overhead of re-initialising on every
-    invocation and keeps HTTP connection pools alive.
-
-    The `global` keyword is required so Python knows we are assigning to
-    the module-level variable, not creating a new local one.
-    """
     global _llm_instance
 
     if _llm_instance is None:

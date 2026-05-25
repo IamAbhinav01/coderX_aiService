@@ -32,8 +32,12 @@ from app.vector_store.astra_store import find_similar_problem, insert_problem
 from app.utils.logger import get_logger
 from app.errors.base_error import BaseError
 from app.prompts.promptParser import problem_prompt as parser_prompt
+import requests
 
 logger = get_logger(__name__)
+
+PROBLEM_SERVICE_URL = "http://localhost:4000/api/v1/problems"
+
 
 
 
@@ -183,5 +187,14 @@ def generate_and_save_problem(topic: str, difficulty: str) -> dict:
         f'title="{saved_problem.get("title")}"'
     )
 
-    
+    # Sync to MongoDB via problem_service
+    try:
+        payload = dict(saved_problem)
+        if "_id" in payload:
+            payload["_id"] = str(payload["_id"])
+        requests.post(PROBLEM_SERVICE_URL, json=payload, timeout=5)
+        logger.info(f"[QuestionGenerator] Synced problem {payload.get('_id')} to problem_service MongoDB.")
+    except Exception as sync_err:
+        logger.error(f"[QuestionGenerator] Failed to sync to problem_service: {sync_err}")
+
     return {"source": "generated", "problem": saved_problem}

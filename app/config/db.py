@@ -8,11 +8,13 @@ logger = get_logger(__name__)
 
 
 
+try:
+    client = DataAPIClient()
+    db = client.get_database(
+        ASTRA_DB_APPLICATION_URL,
+        token=ASTRA_DB_APPLICATION_TOKEN,
 
-client = DataAPIClient()
-db = client.get_database(
-    ASTRA_DB_APPLICATION_URL,
-    token=ASTRA_DB_APPLICATION_TOKEN,
-)
-
-logger.info(f"Connected to Astra DB | collections: {db.list_collection_names()}")
+    )
+    logger.info(f"Connected to Astra DB | collections: {db.list_collection_names()}")
+except Exception as e:
+    logger.error(f"Astra DB connection failed: {e}")
