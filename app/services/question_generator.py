@@ -28,6 +28,7 @@ from app.config.langchainConfig import get_groq_client
 from app.prompts.problemPrompt import problem_prompt
 from app.utils.response_parser import parse_llm_response
 from app.utils.embedder import embed_document, embed_query
+from app.utils.test_case_validator import validate_and_filter_test_cases
 from app.vector_store.astra_store import find_similar_problem, insert_problem
 from app.utils.logger import get_logger
 from app.errors.base_error import BaseError
@@ -153,10 +154,15 @@ def generate_and_save_problem(topic: str, difficulty: str) -> dict:
 
     logger.info("[QuestionGenerator] LLM responded — parsing output...")
 
-   
     problem_data: dict = parse_llm_response(raw)
 
-   
+    # ── Validate test cases against the reference solution ───────────────────
+    # Runs each test case through the embedded Python reference implementation
+    # and drops any whose expected output doesn't match — so wrong AI-generated
+    # expected outputs never reach the DB.
+    logger.info("[QuestionGenerator] Validating test cases against reference solution...")
+    problem_data = validate_and_filter_test_cases(problem_data)
+
     problem_data["topic"] = normalised_topic
 
    
@@ -188,12 +194,13 @@ def generate_and_save_problem(topic: str, difficulty: str) -> dict:
     )
 
     # Sync to MongoDB via problem_service
+    
+    # NOTE: Do NOT include _id — let MongoDB auto-generate one to avoid
+    # E11000 duplicate key conflicts if the same problem is synced again.
     try:
-        payload = dict(saved_problem)
-        if "_id" in payload:
-            payload["_id"] = str(payload["_id"])
+        payload = {k: v for k, v in saved_problem.items() if k != "_id"}
         requests.post(PROBLEM_SERVICE_URL, json=payload, timeout=5)
-        logger.info(f"[QuestionGenerator] Synced problem {payload.get('_id')} to problem_service MongoDB.")
+        logger.info(f"[QuestionGenerator] Synced problem '{payload.get('title')}' to problem_service MongoDB.")
     except Exception as sync_err:
         logger.error(f"[QuestionGenerator] Failed to sync to problem_service: {sync_err}")
 
