@@ -38,7 +38,7 @@ def run_evaluation(user_prompt: str):
         # Step 3: Create final aligned payload
         print("\n[Step 3] Creating aligned problem payload...")
 
-        final_payload = create_aligned_problem(user_prompt)
+        final_payload = create_aligned_problem(user_prompt, raw_problem)
 
         print("\n" + "=" * 80)
         print("ALIGNMENT INSPECTION")
@@ -143,6 +143,6 @@ def run_evaluation(user_prompt: str):
 
 if __name__ == "__main__":
 
-    user_prompt = "cycle detection in linke list"
+    user_prompt = "0/1 knapsack"
 
     run_evaluation(user_prompt)

@@ -34,9 +34,10 @@ def test_cases_output(rawProblem: GeneratedProblemRaw) -> list:
         
     return validated_testCases
 
-def create_aligned_problem(user_prompt: str):
+def create_aligned_problem(user_prompt: str, raw_problem: GeneratedProblemRaw = None):
 
-    raw_problem = generate_problem(user_prompt)
+    if raw_problem is None:
+        raw_problem = generate_problem(user_prompt)
     
     test_cases = test_cases_output(raw_problem)
     
