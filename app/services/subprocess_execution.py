@@ -1,6 +1,6 @@
 import subprocess
 from validations.pydanticValidation import GeneratedProblemRaw
-from groq_service import generate_problem
+from groq_service import generate_problem, clean_code
 import json
 import sys
 
@@ -12,7 +12,7 @@ def test_cases_output(rawProblem: GeneratedProblemRaw) -> list:
         input_str = case.input if isinstance(case.input, str) else json.dumps(case.input)
         try:
             process = subprocess.Popen(
-                [sys.executable, "-c", rawProblem.reference_solution],
+                [sys.executable, "-c", clean_code(rawProblem.reference_solution)],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,

@@ -143,6 +143,6 @@ def run_evaluation(user_prompt: str):
 
 if __name__ == "__main__":
 
-    user_prompt = "0/1 knapsack"
+    user_prompt = "trapping maximum rainwater"
 
     run_evaluation(user_prompt)

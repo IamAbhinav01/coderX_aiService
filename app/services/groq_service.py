@@ -4,13 +4,28 @@ from validations.pydanticValidation import GeneratedProblemRaw
 import json
 import subprocess
 import sys
+import re
 
 groq_client = client
+
+def clean_code(code: str) -> str:
+    code = code.strip()
+    
+    # Strip markdown code blocks
+    code = re.sub(r"^```(?:python|py)?\s*", "", code)
+    code = re.sub(r"\s*```$", "", code)
+    
+    # Strip triple quotes if code is wrapped as a docstring
+    if (code.startswith("'''") and code.endswith("'''")) or (code.startswith('"""') and code.endswith('"""')):
+        code = code[3:-3].strip()
+        
+    return code.strip()
 
 def verify_solution(raw_problem: GeneratedProblemRaw) -> str:
     """Runs the reference solution against the testcase inputs.
     Returns None if successful, or the error message string if it fails.
     """
+    outputs = set()
     for index, case in enumerate(raw_problem.testCaseInputs):
         input_str = case.input if isinstance(case.input, str) else json.dumps(case.input)
         try:
@@ -30,6 +45,8 @@ def verify_solution(raw_problem: GeneratedProblemRaw) -> str:
                 json.loads(stdout.strip())
             except Exception as json_err:
                 return f"Test Case {index + 1} output is not valid JSON. Output:\n{stdout.strip()}\nParsing error: {json_err}"
+            
+            outputs.add(stdout.strip())
                 
         except subprocess.TimeoutExpired:
             process.kill()
@@ -37,6 +54,11 @@ def verify_solution(raw_problem: GeneratedProblemRaw) -> str:
         except Exception as e:
             return f"Test Case {index + 1} execution raised an exception: {e}"
             
+    # Check if all test cases return the exact same output (e.g. all 0, all False)
+    # Only enforce this if there is more than 1 test case generated
+    if len(raw_problem.testCaseInputs) > 1 and len(outputs) == 1:
+        return f"All generated test cases returned the exact same output: {list(outputs)[0]}. This represents extremely weak test coverage. Please generate more diverse and non-trivial test cases."
+        
     return None
 
 def generate_problem(prompt : str)->GeneratedProblemRaw:
@@ -117,6 +139,7 @@ def generate_problem(prompt : str)->GeneratedProblemRaw:
         try:
             raw_json = json.loads(raw_content)
             raw_problem = GeneratedProblemRaw.model_validate(raw_json)
+            raw_problem.reference_solution = clean_code(raw_problem.reference_solution)
         except Exception as parse_error:
             if attempt == max_retries - 1:
                 raise parse_error
