@@ -1,3 +1,11 @@
+import sys
+import os
+# This dynamically tells Python to look inside the parent 'app' directory
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+
+
+
 import traceback
 
 from services.groq_service import generate_problem
@@ -135,6 +143,6 @@ def run_evaluation(user_prompt: str):
 
 if __name__ == "__main__":
 
-    user_prompt = "Create a program that reverses a string"
+    user_prompt = "cycle detection in linke list"
 
     run_evaluation(user_prompt)
