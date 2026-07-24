@@ -20,6 +20,9 @@ def test_cases_output(rawProblem: GeneratedProblemRaw) -> list:
             )
 
             stdout, stderr = process.communicate(input_str, timeout=2.0)
+            if process.returncode != 0:
+                raise RuntimeError(f"Reference solution execution failed with exit code {process.returncode}. Stderr: {stderr.strip()}")
+            
             validated_testCases.append({
                 "input": input_str,
                 "output": stdout.strip()
@@ -35,10 +38,8 @@ def create_aligned_problem(user_prompt: str):
 
     raw_problem = generate_problem(user_prompt)
     
-    
     test_cases = test_cases_output(raw_problem)
     
-   
     final_payload = {
         "title": raw_problem.title,
         "description": raw_problem.description,
