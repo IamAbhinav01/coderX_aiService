@@ -1,48 +1,32 @@
-import os
-import json
-from groq import Groq
+from config.groqClient import client
 from config.serverConfig import ServerConfig
+from validations.pydanticValidation import GeneratedProblemRaw
+import json
 
-# client = Groq(
-#     api_key=ServerConfig()["GROQ_API_KEY"],
-# )
+groq_client = client
 
-groq = Groq()
+def generate_problem(prompt : str)->dict:
+    system_instruction = """You are a competitive programming designer.
+    Generate a coding challenge based on the user request.
+    Always output JSON matching the provided schema.
+    Provide a robust reference_solution written in Python 3.
+    Provide 3 to 5 realistic input cases in testCaseInputs.
+    """
 
-response = groq.chat.completions.create(
-    model="openai/gpt-oss-20b",
-    messages=[
-        {"role": "system", "content": "Extract product review information from the text."},
-        {
-            "role": "user",
-            "content": "I bought the UltraSound Headphones last week and I'm really impressed! The noise cancellation is amazing and the battery lasts all day. Sound quality is crisp and clear. I'd give it 4.5 out of 5 stars.",
-        },
-    ],
-    response_format={
-        "type": "json_schema",
-        "json_schema": {
-            "name": "product_review",
-            "strict": True,
-            "schema": {
-                "type": "object",
-                "properties": {
-                    "product_name": {"type": "string"},
-                    "rating": {"type": "number"},
-                    "sentiment": {
-                        "type": "string",
-                        "enum": ["positive", "negative", "neutral"]
-                    },
-                    "key_features": {
-                        "type": "array",
-                        "items": {"type": "string"}
-                    }
-                },
-                "required": ["product_name", "rating", "sentiment", "key_features"],
-                "additionalProperties": False
+    response = client.chat.completions.create(
+        model=ServerConfig()["openai/gpt-oss-20b"],
+        messages=[
+            {"role":"system","content":system_instruction},
+            {"role":"user","content":prompt}
+        ],
+        response_format={
+            "type":"json_schema",
+            "json_schema":{
+                "name":"GenerateCodingQuestionRAW",
+                "schema":GeneratedProblemRaw.model_json_schema()
             }
         }
-    }
-)
+    )
+    raw_json = json.loads(response.choices[0].message.content or "{}")
+    return GeneratedProblemRaw.model_validate(raw_json)
 
-result =json.loads(response.choices[0].message.content or "{}")
-print(json.dumps(result,indent=2))
