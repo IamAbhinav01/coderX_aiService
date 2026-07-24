@@ -1,5 +1,6 @@
 import subprocess
 from validations.pydanticValidation import GeneratedProblemRaw
+from groq_service import generate_problem
 import json
 import sys
 
@@ -29,3 +30,30 @@ def test_cases_output(rawProblem: GeneratedProblemRaw) -> list:
             raise TimeoutError("Reference solution timed out during evaluation.")
         
     return validated_testCases
+
+def create_aligned_problem(user_prompt: str):
+
+    raw_problem = generate_problem(user_prompt)
+    
+    
+    test_cases = test_cases_output(raw_problem)
+    
+   
+    final_payload = {
+        "title": raw_problem.title,
+        "description": raw_problem.description,
+        "difficulty": raw_problem.difficulty.value,
+        "testCases": test_cases,
+        "codeSnippets": [
+            {
+                "language": snippet.language.value,
+                "startSnippet": snippet.startSnippet,
+                "midSnippet": snippet.midSnippet,
+                "endSnippet": snippet.endSnippet
+            } for snippet in raw_problem.codeSnippets
+        ],
+        "editorial": f"### Optimal Solution Walkthrough\n\n```python\n{raw_problem.reference_solution}\n```",
+        "topic": raw_problem.topic
+    }
+    
+    return final_payload
