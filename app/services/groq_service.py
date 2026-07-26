@@ -1,6 +1,7 @@
 from config.groqClient import client
 from config.serverConfig import ServerConfig
 from validations.pydanticValidation import GeneratedProblemRaw
+from prompts.generationPrompt import prompt
 import json
 import subprocess
 import sys
@@ -84,58 +85,7 @@ def verify_solution(raw_problem: GeneratedProblemRaw) -> str:
     return None
 
 def generate_problem(prompt : str)->GeneratedProblemRaw:
-    system_instruction = """You are an expert competitive programming problem designer.
-    Generate a complete, high-quality coding challenge based on the user request.
-    Always output JSON matching the provided schema.
-    
-    CRITICAL RULES FOR DYNAMIC INPUTS & NO HARDCODING:
-    1. NEVER HARDCODE ANY PARAMETERS or variables (such as target values, partition pivots x, k, target, etc.) inside the reference_solution script!
-    2. All problem parameters MUST be passed dynamically through each test case in `testCaseInputs`.
-    3. If the problem takes MULTIPLE arguments (e.g. `head` and `x`, or `nums` and `target`, or `grid` and `k`), each item in `testCaseInputs` MUST have its 'input' field formatted as a JSON Object with explicit key names matching all parameters.
-       Examples:
-       - Multi-parameter LinkedList: `{"list": [1, 4, 3, 2, 5, 2], "x": 3}`
-       - Multi-parameter Array: `{"nums": [2, 7, 11, 15], "target": 9}`
-       - Single-parameter Array: `{"height": [0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1]}`
-    4. ARRAY FORMATTING (STRICT): Arrays MUST contain multiple separate elements (e.g., `[1, 4, 3, 2, 5, 2]`). NEVER concatenate digits into a single number like `[143252]` or `[21]`. Each number in the array MUST be a separate integer in JSON!
-
-    THE `reference_solution` SCRIPT RULES:
-    The reference_solution MUST be a complete, self-contained, executable Python 3 script.
-    The script MUST:
-    1. Define any helper classes required by the problem (e.g., `class ListNode: def __init__(self, val=0, next=None): self.val = val; self.next = next`, `class TreeNode: ...`).
-    2. Implement the solution logic function/class method.
-    3. Implement a `build_input(raw)` function that dynamically converts the JSON raw input (read from stdin) into whatever arguments the solution function expects.
-       - If `raw` is a dictionary containing named parameter keys (e.g., `{"list": [1, 4, 3, 2, 5, 2], "x": 3}`), `build_input(raw)` MUST extract all parameters dynamically from `raw` (e.g., `head_list = raw.get("list", raw.get("head"))`, `x = raw["x"]`), construct any helper data structures (like building a `ListNode` chain), and return a tuple of arguments `(head_node, x)`.
-       - NEVER hardcode values like `x = 3` or `target = 9` inside `build_input` or solution methods!
-    4. Implement a `serialize_output(result)` function that converts the solution function's return value back into standard JSON-serializable types (e.g., converting a `ListNode` head back to a Python list `[1, 2, 2, 4, 3, 5]`, or converting custom objects to plain lists/ints/dicts).
-    5. Include an `if __name__ == "__main__":` block at the bottom:
-       ```python
-       if __name__ == "__main__":
-           raw = json.loads(sys.stdin.read())
-           parsed_args = build_input(raw)
-           solution = Solution()
-           if isinstance(parsed_args, tuple):
-               result = solution.solve(*parsed_args)
-           elif isinstance(parsed_args, dict):
-               result = solution.solve(**parsed_args)
-           else:
-               result = solution.solve(parsed_args)
-           output = serialize_output(result)
-           print(json.dumps(output))
-       ```
-
-    FEW-SHOT EXAMPLES OF GOOD MULTI-ELEMENT TEST CASES:
-    For a Partition List around x problem:
-    - Case 1: `{"input": {"list": [1, 4, 3, 2, 5, 2], "x": 3}}` -> Expected Output: `[1, 2, 2, 4, 3, 5]` (Standard case)
-    - Case 2: `{"input": {"list": [2, 1], "x": 2}}` -> Expected Output: `[1, 2]` (Node movement case)
-    - Case 3: `{"input": {"list": [4, 1, 5, 2, 3], "x": 3}}` -> Expected Output: `[1, 2, 4, 5, 3]` (Stability case)
-    - Case 4: `{"input": {"list": [3, 3, 3, 1, 2], "x": 3}}` -> Expected Output: `[1, 2, 3, 3, 3]` (Duplicates case)
-    - Case 5: `{"input": {"list": [], "x": 3}}` -> Expected Output: `[]` (Empty boundary case)
-
-    STARTER CODE SNIPPETS (codeSnippets):
-    Generate starter templates for python, java, and cpp.
-    Make sure method signatures match the exact parameter names used in `testCaseInputs`.
-    """
-
+    system_instruction = prompt
     config = ServerConfig()
     messages = [
         {"role": "system", "content": system_instruction},
