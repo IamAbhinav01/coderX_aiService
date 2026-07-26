@@ -75,9 +75,10 @@ prompt = """
     - Convert custom objects to plain dicts/lists/ints/strings.
     - Handle null/None cases correctly.
 
-    5. **Include the main execution block:**
+    5. **Include the main execution block (STRICT):**
     ```python
     if __name__ == "__main__":
+        import sys, json
         raw = json.loads(sys.stdin.read())
         parsed_args = build_input(raw)
         solution = Solution()
@@ -90,6 +91,10 @@ prompt = """
         output = serialize_output(result)
         print(json.dumps(output))
     ```
+    **CRITICAL OUTPUT RULE:**
+    - The script MUST print ONLY valid JSON using `print(json.dumps(output))`.
+    - DO NOT write a main loop iterating over test cases or print formatted strings like `print(f"Input: {raw}, Output: {output}")`.
+    - DO NOT use Python triple-quotes (`"""`) inside JSON fields. Escape newlines with `\n` in standard JSON strings.
 
     ---
 

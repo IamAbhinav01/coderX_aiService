@@ -1,11 +1,12 @@
 from config.groqClient import client
 from config.serverConfig import ServerConfig
 from validations.pydanticValidation import GeneratedProblemRaw
-from prompts.generationPrompt import prompt
+from prompts.generationPrompt import prompt as SYSTEM_PROMPT
 import json
 import subprocess
 import sys
 import re
+import groq
 
 groq_client = client
 
@@ -61,7 +62,7 @@ def verify_solution(raw_problem: GeneratedProblemRaw) -> str:
             try:
                 actual_res = json.loads(stdout.strip())
             except Exception as json_err:
-                return f"Test Case {index + 1} output is not valid JSON. Output:\n{stdout.strip()}\nParsing error: {json_err}"
+                return f"Test Case {index + 1} output is not valid JSON. Output:\n{stdout.strip()}\nParsing error: {json_err}. Note: The reference_solution MUST print ONLY raw JSON via `print(json.dumps(output))`."
 
             if case.expected_output is not None:
                 exp_res = case.expected_output
@@ -84,51 +85,83 @@ def verify_solution(raw_problem: GeneratedProblemRaw) -> str:
         
     return None
 
-def generate_problem(prompt : str)->GeneratedProblemRaw:
-    system_instruction = prompt
+def generate_problem(user_prompt: str) -> GeneratedProblemRaw:
+    system_instruction = SYSTEM_PROMPT
     config = ServerConfig()
+    
+    # Model fallback hierarchy if primary model hits rate limit (429)
+    models_to_try = [config["GROQ_MODEL"]]
+    for fallback_model in ["llama-3.1-8b-instant", "mixtral-8x7b-32768"]:
+        if fallback_model not in models_to_try:
+            models_to_try.append(fallback_model)
+
     messages = [
         {"role": "system", "content": system_instruction},
-        {"role": "user", "content": prompt}
+        {"role": "user", "content": user_prompt}
     ]
     
     max_retries = 5
     for attempt in range(max_retries):
-        try:
-            response = client.chat.completions.create(
-                model=config["GROQ_MODEL"],
-                temperature=config["TEMPERATURE"],
-                max_tokens=config["GROQ_MAX_TOKENS"],
-                messages=messages,
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "GenerateCodingQuestionRAW",
-                        "schema": GeneratedProblemRaw.model_json_schema()
-                    }
-                }
-            )
-        except Exception as e:
-            error_msg = str(e)
-            if "response_format" in error_msg or "json_schema" in error_msg:
-                # Fallback to json_object mode
-                schema_json = json.dumps(GeneratedProblemRaw.model_json_schema(), indent=2)
-                fallback_system_instruction = system_instruction + f"\n\nYou MUST respond with valid JSON matching the following JSON Schema:\n{schema_json}"
-                
-                fallback_messages = [
-                    {"role": "system", "content": fallback_system_instruction}
-                ] + messages[1:]
-                
+        response = None
+        for current_model in models_to_try:
+            try:
                 response = client.chat.completions.create(
-                    model=config["GROQ_MODEL"],
+                    model=current_model,
                     temperature=config["TEMPERATURE"],
                     max_tokens=config["GROQ_MAX_TOKENS"],
-                    messages=fallback_messages,
-                    response_format={"type": "json_object"}
+                    messages=messages,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "GenerateCodingQuestionRAW",
+                            "schema": GeneratedProblemRaw.model_json_schema()
+                        }
+                    }
                 )
-            else:
-                raise e
-                
+                break
+            except groq.RateLimitError as rle:
+                print(f"[RateLimitError] Model '{current_model}' hit rate limit. Trying fallback model...")
+                continue
+            except Exception as e:
+                error_msg = str(e)
+                if "response_format" in error_msg or "json_schema" in error_msg:
+                    # Fallback to json_object mode
+                    schema_json = json.dumps(GeneratedProblemRaw.model_json_schema(), indent=2)
+                    fallback_system_instruction = system_instruction + f"\n\nYou MUST respond with valid JSON matching the following JSON Schema:\n{schema_json}"
+                    
+                    fallback_messages = [
+                        {"role": "system", "content": fallback_system_instruction}
+                    ] + messages[1:]
+                    
+                    try:
+                        response = client.chat.completions.create(
+                            model=current_model,
+                            temperature=config["TEMPERATURE"],
+                            max_tokens=config["GROQ_MAX_TOKENS"],
+                            messages=fallback_messages,
+                            response_format={"type": "json_object"}
+                        )
+                        break
+                    except groq.RateLimitError:
+                        print(f"[RateLimitError] Fallback model '{current_model}' hit rate limit.")
+                        continue
+                    except groq.BadRequestError as bre:
+                        print(f"[BadRequestError] {bre}. Adjusting retry prompt...")
+                        if attempt < max_retries - 1:
+                            messages.append({"role": "user", "content": "Your last response failed JSON validation. Please output strictly valid, escaped JSON without any unescaped triple-quotes or formatting errors."})
+                            break
+                        else:
+                            raise bre
+                else:
+                    if attempt < max_retries - 1 and ("400" in error_msg or "json_validate_failed" in error_msg):
+                        print(f"[API Error] {error_msg}. Retrying with sanitized prompt...")
+                        messages.append({"role": "user", "content": "JSON validation failed. Ensure all strings are standard escaped JSON strings with no unescaped triple-quotes or python docstrings."})
+                        break
+                    raise e
+                    
+        if response is None:
+            raise RuntimeError("All configured Groq models failed or exceeded rate limits. Please try again later.")
+
         raw_content = response.choices[0].message.content or "{}"
         try:
             raw_json = json.loads(raw_content)
@@ -155,10 +188,18 @@ Error Details:
 {validation_error}
 
 Please fix the reference_solution code. Make sure that:
-1. Any block quotes or indentation issues on imports are removed.
-2. DO NOT HARDCODE ANY PARAMETER VALUES (such as x=3, target=9, k=2) inside the solution script or build_input!
-3. All parameters MUST be extracted dynamically from `raw` inside `build_input(raw)` (e.g. `head_list = raw.get("list", raw.get("head"))`, `x = raw["x"]`).
-4. `testCaseInputs` must be structured JSON objects containing all parameter keys (e.g. `{{"list": [1, 4, 3, 2, 5, 2], "x": 3}}`) with comma-separated elements in arrays.
-5. The script is fully runnable standalone.
+1. The script MUST end with:
+   if __name__ == "__main__":
+       import sys, json
+       raw = json.loads(sys.stdin.read())
+       parsed_args = build_input(raw)
+       solution = Solution()
+       ...
+       print(json.dumps(output))
+2. DO NOT write a main loop iterating over test cases or print formatted strings like `print(f"Input: ..., Output: ...")`. Print ONLY raw JSON via `print(json.dumps(output))`.
+3. DO NOT use Python triple-quotes (`\"\"\"`) inside JSON fields.
+4. DO NOT HARDCODE ANY PARAMETER VALUES inside the solution script or build_input!
+5. `testCaseInputs` must be structured JSON objects containing all parameter keys with comma-separated list elements.
 """
         messages.append({"role": "user", "content": feedback})
+
