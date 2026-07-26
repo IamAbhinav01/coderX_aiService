@@ -4,24 +4,37 @@ prompt = """
     **OUTPUT REQUIREMENT:** Return valid JSON matching this exact schema:
     ```json
     {
-    "title": "string",
-    "description": "string",
-    "difficulty": "Easy|Medium|Hard",
-    "topics": ["string"],
-    "constraints": "string",
-    "testCases": [
+      "title": "string",
+      "description": "string",
+      "difficulty": "easy|medium|hard",
+      "topic": "string",
+      "reference_solution": "complete Python 3 script",
+      "testCaseInputs": [
         {
-        "input": "object or single value",
-        "expectedOutput": "any JSON-serializable type",
-        "explanation": "string"
+          "input": { "param1": "value1" },
+          "expected_output": null
         }
-    ],
-    "reference_solution": "complete Python 3 script",
-    "codeSnippets": {
-        "python": "string",
-        "java": "string",
-        "cpp": "string"
-    }
+      ],
+      "codeSnippets": [
+        {
+          "language": "python",
+          "startSnippet": "def solve(nums: List[int]) -> int:",
+          "midSnippet": "",
+          "endSnippet": "return res"
+        },
+        {
+          "language": "java",
+          "startSnippet": "public int solve(int[] nums) {",
+          "midSnippet": "",
+          "endSnippet": "}"
+        },
+        {
+          "language": "cpp",
+          "startSnippet": "int solve(vector<int>& nums) {",
+          "midSnippet": "",
+          "endSnippet": "}"
+        }
+      ]
     }
     ```
 
@@ -106,7 +119,7 @@ prompt = """
     - Special case (duplicates, extreme values, corner condition relevant to the data structure)
     - Additional variation if applicable
 
-    Each test case must include a clear `explanation` field. **All test cases must be logically correct and verified**—inputs and expected outputs must match the problem logic exactly with no errors.
+    **All test cases in `testCaseInputs` must be logically correct and verified**—inputs and expected outputs must match the problem logic exactly with no errors.
 
     ---
 
