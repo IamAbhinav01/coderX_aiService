@@ -26,8 +26,25 @@ def verify_solution(raw_problem: GeneratedProblemRaw) -> str:
     Returns None if successful, or the error message string if it fails.
     """
     outputs = set()
+    multi_element_cases = 0
+
     for index, case in enumerate(raw_problem.testCaseInputs):
-        input_str = case.input if isinstance(case.input, str) else json.dumps(case.input)
+        # Programmatically check input quality for arrays
+        inp = case.input
+        if isinstance(inp, dict):
+            for k, v in inp.items():
+                if isinstance(v, list):
+                    if len(v) >= 2:
+                        multi_element_cases += 1
+                    elif len(v) == 1 and isinstance(v[0], int) and v[0] > 9:
+                        return f"Test Case {index + 1} parameter '{k}' contains a concatenated single number [{v[0]}] instead of a multi-element array like [1, 4, 3, 2, 5, 2]. You MUST separate numbers into individual list elements."
+        elif isinstance(inp, list):
+            if len(inp) >= 2:
+                multi_element_cases += 1
+            elif len(inp) == 1 and isinstance(inp[0], int) and inp[0] > 9:
+                return f"Test Case {index + 1} contains a concatenated single number [{inp[0]}] instead of a multi-element array like [1, 4, 3, 2, 5, 2]. You MUST separate numbers into individual list elements."
+
+        input_str = json.dumps(case.input) if not isinstance(case.input, str) else case.input
         try:
             process = subprocess.Popen(
                 [sys.executable, "-c", raw_problem.reference_solution],
@@ -40,12 +57,16 @@ def verify_solution(raw_problem: GeneratedProblemRaw) -> str:
             if process.returncode != 0:
                 return f"Test Case {index + 1} failed execution. Exit code: {process.returncode}. Error:\n{stderr.strip()}"
             
-            # Verify the output is valid JSON
             try:
-                json.loads(stdout.strip())
+                actual_res = json.loads(stdout.strip())
             except Exception as json_err:
                 return f"Test Case {index + 1} output is not valid JSON. Output:\n{stdout.strip()}\nParsing error: {json_err}"
-            
+
+            if case.expected_output is not None:
+                exp_res = case.expected_output
+                if json.dumps(actual_res, sort_keys=True) != json.dumps(exp_res, sort_keys=True):
+                    return f"Test Case {index + 1} expected output ({exp_res}) does NOT match actual reference solution execution output ({actual_res}). Reference solution logic and test case expected outputs must be aligned."
+
             outputs.add(stdout.strip())
                 
         except subprocess.TimeoutExpired:
@@ -54,42 +75,65 @@ def verify_solution(raw_problem: GeneratedProblemRaw) -> str:
         except Exception as e:
             return f"Test Case {index + 1} execution raised an exception: {e}"
             
-    # Check if all test cases return the exact same output (e.g. all 0, all False)
-    # Only enforce this if there is more than 1 test case generated
-    if len(raw_problem.testCaseInputs) > 1 and len(outputs) == 1:
-        return f"All generated test cases returned the exact same output: {list(outputs)[0]}. This represents extremely weak test coverage. Please generate more diverse and non-trivial test cases."
+    if len(raw_problem.testCaseInputs) >= 3 and multi_element_cases < 2:
+        return "Test cases lack multi-element inputs. At least 2 or 3 test cases must provide lists/arrays with 3 to 6 separate elements (e.g. [1, 4, 3, 2, 5, 2])."
+
+    if len(raw_problem.testCaseInputs) >= 3 and len(outputs) < 2:
+        return f"All generated test cases returned weak outputs with insufficient diversity ({list(outputs)}). Please generate more diverse test cases where at least 2 cases return distinct non-zero results."
         
     return None
 
 def generate_problem(prompt : str)->GeneratedProblemRaw:
-    system_instruction = """You are a competitive programming designer.
-    Generate a coding challenge based on the user request.
+    system_instruction = """You are an expert competitive programming problem designer.
+    Generate a complete, high-quality coding challenge based on the user request.
     Always output JSON matching the provided schema.
     
-    The reference_solution MUST be a complete, self-contained Python 3 script.
+    CRITICAL RULES FOR DYNAMIC INPUTS & NO HARDCODING:
+    1. NEVER HARDCODE ANY PARAMETERS or variables (such as target values, partition pivots x, k, target, etc.) inside the reference_solution script!
+    2. All problem parameters MUST be passed dynamically through each test case in `testCaseInputs`.
+    3. If the problem takes MULTIPLE arguments (e.g. `head` and `x`, or `nums` and `target`, or `grid` and `k`), each item in `testCaseInputs` MUST have its 'input' field formatted as a JSON Object with explicit key names matching all parameters.
+       Examples:
+       - Multi-parameter LinkedList: `{"list": [1, 4, 3, 2, 5, 2], "x": 3}`
+       - Multi-parameter Array: `{"nums": [2, 7, 11, 15], "target": 9}`
+       - Single-parameter Array: `{"height": [0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1]}`
+    4. ARRAY FORMATTING (STRICT): Arrays MUST contain multiple separate elements (e.g., `[1, 4, 3, 2, 5, 2]`). NEVER concatenate digits into a single number like `[143252]` or `[21]`. Each number in the array MUST be a separate integer in JSON!
+
+    THE `reference_solution` SCRIPT RULES:
+    The reference_solution MUST be a complete, self-contained, executable Python 3 script.
     The script MUST:
-    1. Define any necessary helper classes (such as ListNode, TreeNode, etc.) if the problem uses them.
-    2. Implement the solution logic function.
-    3. Implement a `build_input(raw)` function that converts the raw JSON/dict/array input (received from stdin) into whatever native structure the solution logic function expects.
-    4. Implement a `serialize_output(result)` function that converts the solution function's return value back into plain, standard JSON-serializable types (such as str, int, bool, list, dict — no custom objects).
-    5. Include an `if __name__ == "__main__":` block at the bottom that reads the JSON test case input from standard input (stdin) using `sys.stdin.read()`, deserializes it using `json.loads()`, calls `build_input()`, calls the solution function, calls `serialize_output()`, and prints the serialized result using `print(json.dumps(output))`. Nothing else must be printed.
-    Ensure that the reference_solution is valid, runnable Python code. DO NOT wrap it in extra comments or block quotes (like single quotes or double quotes).
-    
-    Provide 3 to 5 realistic, diverse, and robust input cases in testCaseInputs.
-    Requirements for testCaseInputs:
-    - They must cover diverse scenarios (e.g. standard inputs, edge cases, boundary conditions).
-    - They MUST NOT all produce the same trivial output (such as all returning 0, empty list, None, or False).
-    - At least some cases must require executing the non-trivial/main logic paths of the solution (e.g., in knapsack, items must fit and be selected to maximize value, resulting in positive non-zero outputs).
-    - Ensure all lists, arrays, or objects in the inputs contain actual comma-separated values (e.g., `[1, 3, 4, 5]` instead of a single contiguous number like `[1345]`).
-    - Each item in testCaseInputs must contain an 'input' field representing the raw JSON input to be passed to the harness. E.g. for a linked list, pass a clean structure like: {"values": [3, 2, 0, -4], "pos": 1}.
-    
-    Generate starter code templates in codeSnippets for all supported languages: python, java, and cpp.
-    
-    Starter code template guidelines:
-    - For C++ (cpp): Include standard competitive programming headers (e.g., `#include <bits/stdc++.h>`) and standard namespaces/libraries.
-    - For Java (java): Include common standard library imports (e.g., `import java.util.*;` and `import java.io.*;`).
-    
-    Make sure each item in the codeSnippets array is a valid CodeSnippet object containing all required fields: 'language', 'startSnippet', 'midSnippet', and 'endSnippet'. Do not include raw strings or empty items in the codeSnippets array.
+    1. Define any helper classes required by the problem (e.g., `class ListNode: def __init__(self, val=0, next=None): self.val = val; self.next = next`, `class TreeNode: ...`).
+    2. Implement the solution logic function/class method.
+    3. Implement a `build_input(raw)` function that dynamically converts the JSON raw input (read from stdin) into whatever arguments the solution function expects.
+       - If `raw` is a dictionary containing named parameter keys (e.g., `{"list": [1, 4, 3, 2, 5, 2], "x": 3}`), `build_input(raw)` MUST extract all parameters dynamically from `raw` (e.g., `head_list = raw.get("list", raw.get("head"))`, `x = raw["x"]`), construct any helper data structures (like building a `ListNode` chain), and return a tuple of arguments `(head_node, x)`.
+       - NEVER hardcode values like `x = 3` or `target = 9` inside `build_input` or solution methods!
+    4. Implement a `serialize_output(result)` function that converts the solution function's return value back into standard JSON-serializable types (e.g., converting a `ListNode` head back to a Python list `[1, 2, 2, 4, 3, 5]`, or converting custom objects to plain lists/ints/dicts).
+    5. Include an `if __name__ == "__main__":` block at the bottom:
+       ```python
+       if __name__ == "__main__":
+           raw = json.loads(sys.stdin.read())
+           parsed_args = build_input(raw)
+           solution = Solution()
+           if isinstance(parsed_args, tuple):
+               result = solution.solve(*parsed_args)
+           elif isinstance(parsed_args, dict):
+               result = solution.solve(**parsed_args)
+           else:
+               result = solution.solve(parsed_args)
+           output = serialize_output(result)
+           print(json.dumps(output))
+       ```
+
+    FEW-SHOT EXAMPLES OF GOOD MULTI-ELEMENT TEST CASES:
+    For a Partition List around x problem:
+    - Case 1: `{"input": {"list": [1, 4, 3, 2, 5, 2], "x": 3}}` -> Expected Output: `[1, 2, 2, 4, 3, 5]` (Standard case)
+    - Case 2: `{"input": {"list": [2, 1], "x": 2}}` -> Expected Output: `[1, 2]` (Node movement case)
+    - Case 3: `{"input": {"list": [4, 1, 5, 2, 3], "x": 3}}` -> Expected Output: `[1, 2, 4, 5, 3]` (Stability case)
+    - Case 4: `{"input": {"list": [3, 3, 3, 1, 2], "x": 3}}` -> Expected Output: `[1, 2, 3, 3, 3]` (Duplicates case)
+    - Case 5: `{"input": {"list": [], "x": 3}}` -> Expected Output: `[]` (Empty boundary case)
+
+    STARTER CODE SNIPPETS (codeSnippets):
+    Generate starter templates for python, java, and cpp.
+    Make sure method signatures match the exact parameter names used in `testCaseInputs`.
     """
 
     config = ServerConfig()
@@ -98,7 +142,7 @@ def generate_problem(prompt : str)->GeneratedProblemRaw:
         {"role": "user", "content": prompt}
     ]
     
-    max_retries = 3
+    max_retries = 5
     for attempt in range(max_retries):
         try:
             response = client.chat.completions.create(
@@ -161,8 +205,10 @@ Error Details:
 {validation_error}
 
 Please fix the reference_solution code. Make sure that:
-1. Any block quotes (like triple single quotes or triple double quotes) wrapping the script are removed.
-2. Stdin reading and JSON loading match the exact shape of inputs.
-3. The script is fully working and standalone.
+1. Any block quotes or indentation issues on imports are removed.
+2. DO NOT HARDCODE ANY PARAMETER VALUES (such as x=3, target=9, k=2) inside the solution script or build_input!
+3. All parameters MUST be extracted dynamically from `raw` inside `build_input(raw)` (e.g. `head_list = raw.get("list", raw.get("head"))`, `x = raw["x"]`).
+4. `testCaseInputs` must be structured JSON objects containing all parameter keys (e.g. `{{"list": [1, 4, 3, 2, 5, 2], "x": 3}}`) with comma-separated elements in arrays.
+5. The script is fully runnable standalone.
 """
         messages.append({"role": "user", "content": feedback})

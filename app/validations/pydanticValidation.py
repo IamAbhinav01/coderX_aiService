@@ -14,6 +14,7 @@ class Language(str,Enum):
 
 class TestCaseInputs(BaseModel):
     input : Any = Field(...,description="The test input case (can be string, number, array, or object)")
+    expected_output : Optional[Any] = Field(None, description="Optional expected output for validation alignment")
 
 class CodeSnippet(BaseModel):
     language : Language

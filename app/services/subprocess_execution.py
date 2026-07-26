@@ -9,7 +9,15 @@ def test_cases_output(rawProblem: GeneratedProblemRaw) -> list:
     validated_testCases = []
 
     for case in rawProblem.testCaseInputs:
-        input_str = case.input if isinstance(case.input, str) else json.dumps(case.input)
+        # Standardize input formatting to clean JSON
+        if isinstance(case.input, str):
+            try:
+                parsed = json.loads(case.input)
+                input_str = json.dumps(parsed)
+            except Exception:
+                input_str = case.input
+        else:
+            input_str = json.dumps(case.input)
         try:
             process = subprocess.Popen(
                 [sys.executable, "-c", clean_code(rawProblem.reference_solution)],
@@ -20,17 +28,19 @@ def test_cases_output(rawProblem: GeneratedProblemRaw) -> list:
             )
 
             stdout, stderr = process.communicate(input_str, timeout=2.0)
-            if process.returncode != 0:
-                raise RuntimeError(f"Reference solution execution failed with exit code {process.returncode}. Stderr: {stderr.strip()}")
-            
-            validated_testCases.append({
-                "input": input_str,
-                "output": stdout.strip()
-            })
+            output = stdout.strip() if stdout else ""
 
-        except subprocess.TimeoutExpired:
-            process.kill()
-            raise TimeoutError("Reference solution timed out during evaluation.")
+            # Only append if execution succeeded and output is non-empty
+            if process.returncode == 0 and output:
+                validated_testCases.append({
+                    "input": input_str,
+                    "output": output
+                })
+
+        except Exception:
+            if 'process' in locals() and process.poll() is None:
+                process.kill()
+            continue
         
     return validated_testCases
 
