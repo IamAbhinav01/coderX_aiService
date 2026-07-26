@@ -1,5 +1,5 @@
 from groq import Groq
-from serverConfig import ServerConfig
+from config.serverConfig import ServerConfig
 
 
 api_key = ServerConfig()["GROQ_API_KEY"]

@@ -1,6 +1,6 @@
 import subprocess
 from validations.pydanticValidation import GeneratedProblemRaw
-from groq_service import generate_problem, clean_code
+from services.groq_service import generate_problem, clean_code
 import json
 import sys
 
