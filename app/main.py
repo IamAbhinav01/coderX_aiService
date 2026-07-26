@@ -1,7 +1,18 @@
-from fastapi import FastAPI,HTTPException,status
-import traceback
+import sys
+import os
+# Ensure app directory and root directory are in sys.path
+app_dir = os.path.abspath(os.path.dirname(__file__))
+root_dir = os.path.abspath(os.path.join(app_dir, ".."))
+if app_dir not in sys.path:
+    sys.path.insert(0, app_dir)
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+
+from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel,Field
+from pydantic import BaseModel, Field
+import traceback
+
 from services.subprocess_execution import create_aligned_problem
 
 app = FastAPI(
