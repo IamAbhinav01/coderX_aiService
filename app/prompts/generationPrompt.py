@@ -105,9 +105,9 @@ prompt = """
         print(json.dumps(output))
     ```
     **CRITICAL OUTPUT RULE:**
-    - The script MUST print ONLY valid JSON using `print(json.dumps(output))`.
-    - DO NOT write a main loop iterating over test cases or print formatted strings like `print(f"Input: {raw}, Output: {output}")`.
-    - DO NOT use Python triple-quotes (`"""`) inside JSON fields. Escape newlines with `\n` in standard JSON strings.
+    - The script MUST print ONLY valid JSON using print(json.dumps(output)).
+    - DO NOT write a main loop iterating over test cases or print formatted debug strings.
+    - DO NOT use triple quotes inside JSON string fields. Escape newlines with \\n in JSON strings.
 
     ---
 
