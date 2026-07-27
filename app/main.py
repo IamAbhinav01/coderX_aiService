@@ -11,6 +11,7 @@ if root_dir not in sys.path:
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from services.pineConfig_services import Hit_and_Return,insertPrompt_and_Payload
 import traceback
 
 from services.subprocess_execution import create_aligned_problem
@@ -27,7 +28,21 @@ class ProblemRequest(BaseModel):
 @app.post("/api/v1/generate-problem",status_code=status.HTTP_202_ACCEPTED)
 def generate_problem(body:ProblemRequest):
     try:
+
+        print(f"checking for problem cache in vector DB")
+
+        cache_payload = Hit_and_Return(user_prompt=body.prompt)
+
+        if cache_payload:
+            print(f"problem exsited in cache of vector DB")
+            payload = cache_payload
+            return JSONResponse(status_code=200,content=cache_payload)
+
         payload = create_aligned_problem(user_prompt=body.prompt)
+
+        print(f"Adding ptoblem to vector DB")
+        insertPrompt_and_Payload(body.prompt,payload)
+        
         return JSONResponse(status_code=200,content=payload)
     except Exception as e:
         print(f"[API Error] Failed to generate problem: {e}")
