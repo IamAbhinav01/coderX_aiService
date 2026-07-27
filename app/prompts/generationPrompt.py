@@ -51,9 +51,9 @@ prompt = """
     - Example (Array sum): `{"nums": [2, 7, 11, 15], "target": 9}`
     - Example (Single array): `{"height": [0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1]}`
 
-    **4. ARRAY FORMATTING (STRICT):** Arrays must contain multiple separate elements as individual JSON values.
-    - ✅ CORRECT: `[1, 4, 3, 2, 5, 2]`
-    - ❌ WRONG: `[143252]` or `[21]` (concatenated digits)
+    **4. ARRAY FORMATTING (STRICT):** Every array or list parameter in `testCaseInputs` (e.g. `weights`, `values`, `nums`, `height`) MUST contain 3 to 6 separate numbers separated by commas.
+    - ✅ CORRECT: `[2, 3, 4, 5]` or `[10, 20, 30, 40]`
+    - ❌ WRONG: `[123]` or `[456]` (NEVER generate a single number inside a list when an array parameter is expected).
 
     ---
 

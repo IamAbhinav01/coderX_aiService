@@ -183,23 +183,19 @@ def generate_problem(user_prompt: str) -> GeneratedProblemRaw:
             
         print(f"[Attempt {attempt + 1}] Reference solution failed verification: {validation_error}. Retrying...")
         messages.append({"role": "assistant", "content": raw_content})
-        feedback = f"""Verification failed for the generated reference_solution.
+        feedback = f"""Verification failed for the generated problem output.
 Error Details:
 {validation_error}
 
-Please fix the reference_solution code. Make sure that:
-1. The script MUST end with:
-   if __name__ == "__main__":
-       import sys, json
-       raw = json.loads(sys.stdin.read())
-       parsed_args = build_input(raw)
-       solution = Solution()
-       ...
-       print(json.dumps(output))
-2. DO NOT write a main loop iterating over test cases or print formatted strings like `print(f"Input: ..., Output: ...")`. Print ONLY raw JSON via `print(json.dumps(output))`.
-3. DO NOT use Python triple-quotes (`\"\"\"`) inside JSON fields.
-4. DO NOT HARDCODE ANY PARAMETER VALUES inside the solution script or build_input!
-5. `testCaseInputs` must be structured JSON objects containing all parameter keys with comma-separated list elements.
+CRITICAL INSTRUCTIONS TO FIX THIS ERROR:
+1. IF THE ERROR IS IN `testCaseInputs` (e.g. concatenated single number [123] or lack of multi-element inputs):
+   - You MUST update `testCaseInputs` array values! Change single-element arrays like `[123]` to multi-element arrays with 3 to 6 distinct numbers, e.g., `"weights": [2, 3, 4, 5]`, `"values": [10, 20, 30, 40]`.
+   - Ensure every array input parameter contains multiple comma-separated numbers. DO NOT output single number arrays like `[123]`.
+2. IF THE ERROR IS IN `reference_solution` EXECUTION:
+   - Ensure the Python script reads JSON from `sys.stdin.read()`, calls `build_input(raw)`, executes `solution.solve()`, serializes, and prints ONLY valid JSON via `print(json.dumps(output))`.
+   - DO NOT write a custom `main()` loop iterating over test cases or printing `Input: ..., Output: ...`.
+3. DO NOT HARDCODE ANY PARAMETER VALUES inside the solution script or build_input!
+4. DO NOT use triple-quotes (`\"\"\"`) inside JSON fields. Escape all string fields with standard JSON escaping (`\\n`).
 """
         messages.append({"role": "user", "content": feedback})
 
