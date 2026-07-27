@@ -2,7 +2,7 @@ from config.pineCone import pc
 import json
 import uuid
 
-index_name = "coderX"
+index_name = "coderx"
 index = pc.Index(index_name)
 
 
