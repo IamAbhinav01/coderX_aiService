@@ -22,3 +22,6 @@ class Settings(BaseSettings):
 @lru_cache()
 def instantiate_env()->Settings:
     return Settings()
+
+
+# settings = Settings
