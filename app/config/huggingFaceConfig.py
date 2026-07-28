@@ -1,7 +1,9 @@
 from huggingface_hub import InferenceClient
-from serverConfig import ServerConfig
+from config.config import Settings
 
-api_key = ServerConfig()["HF_TOKEN"]
+settings = Settings()
+
+api_key = settings.HF_TOKEN
 
 client = InferenceClient(
     provider="fal-ai",

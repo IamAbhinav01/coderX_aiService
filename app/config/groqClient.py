@@ -1,8 +1,9 @@
 from groq import Groq
-from config.serverConfig import ServerConfig
+from config.config import Settings
 
+settings = Settings()
 
-api_key = ServerConfig()["GROQ_API_KEY"]
+api_key = settings.GROQ_API_KEY
 client = Groq(api_key=api_key)
 
 def Client():
