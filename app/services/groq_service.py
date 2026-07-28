@@ -29,6 +29,7 @@ def verify_solution(raw_problem: GeneratedProblemRaw) -> str:
     """
     outputs = set()
     multi_element_cases = 0
+    total_array_params = 0
 
     for index, case in enumerate(raw_problem.testCaseInputs):
         # Programmatically check input quality for arrays
@@ -36,11 +37,13 @@ def verify_solution(raw_problem: GeneratedProblemRaw) -> str:
         if isinstance(inp, dict):
             for k, v in inp.items():
                 if isinstance(v, list):
+                    total_array_params += 1
                     if len(v) >= 2:
                         multi_element_cases += 1
                     elif len(v) == 1 and isinstance(v[0], int) and v[0] > 9:
                         return f"Test Case {index + 1} parameter '{k}' contains a concatenated single number [{v[0]}] instead of a multi-element array like [1, 4, 3, 2, 5, 2]. You MUST separate numbers into individual list elements."
         elif isinstance(inp, list):
+            total_array_params += 1
             if len(inp) >= 2:
                 multi_element_cases += 1
             elif len(inp) == 1 and isinstance(inp[0], int) and inp[0] > 9:
@@ -49,7 +52,7 @@ def verify_solution(raw_problem: GeneratedProblemRaw) -> str:
         input_str = json.dumps(case.input) if not isinstance(case.input, str) else case.input
         try:
             process = subprocess.Popen(
-                [sys.executable, "-c", raw_problem.reference_solution],
+                [sys.executable, "-c", clean_code(raw_problem.reference_solution)],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -77,7 +80,7 @@ def verify_solution(raw_problem: GeneratedProblemRaw) -> str:
         except Exception as e:
             return f"Test Case {index + 1} execution raised an exception: {e}"
             
-    if len(raw_problem.testCaseInputs) >= 3 and multi_element_cases < 2:
+    if total_array_params > 0 and len(raw_problem.testCaseInputs) >= 3 and multi_element_cases < 2:
         return "Test cases lack multi-element inputs. At least 2 or 3 test cases must provide lists/arrays with 3 to 6 separate elements (e.g. [1, 4, 3, 2, 5, 2])."
 
     if len(raw_problem.testCaseInputs) >= 3 and len(outputs) < 2:
