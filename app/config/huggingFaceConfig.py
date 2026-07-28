@@ -13,3 +13,6 @@ image = client.text_to_image(
     model="ideogram-ai/ideogram-4-fp8",
 )
 
+image.save("astronaut_horse.png")
+
+print("Image saved successfully!")
