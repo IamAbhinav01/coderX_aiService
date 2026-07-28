@@ -1,0 +1,15 @@
+from huggingface_hub import InferenceClient
+from serverConfig import ServerConfig
+
+api_key = ServerConfig()["HF_TOKEN"]
+
+client = InferenceClient(
+    provider="fal-ai",
+    api_key=api_key,
+)
+
+image = client.text_to_image(
+    "Astronaut riding a horse",
+    model="ideogram-ai/ideogram-4-fp8",
+)
+
