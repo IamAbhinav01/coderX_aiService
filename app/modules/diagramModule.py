@@ -6,9 +6,9 @@ logger = setup_logger(name="DiagramModule")
 
 class DiagramService:
     @staticmethod
-    def generate_url(is_visual:bool,diagram_type:str,diagram_code:Optional[str]=None)->Optional[str]:
+    def generate_url(has_visual:bool,diagram_type:str,diagram_code:Optional[str]=None)->Optional[str]:
 
-        if not is_visual or not diagram_code or  diagram_type == "none":
+        if not has_visual or not diagram_code or  diagram_type == "none":
             return None
 
         try:

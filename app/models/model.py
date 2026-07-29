@@ -30,3 +30,7 @@ class GeneratedProblemRaw(BaseModel):
     testCaseInputs: List[TestCaseInputs] = Field(..., description="A list of 3-5 logical input cases to test")
     codeSnippets: List[CodeSnippet] = Field(..., description="Starter templates for standard languages")
     topic: Optional[str] = Field(None, description="Topic tag (e.g., 'Array', 'String')")
+
+    has_visual:Optional[bool] = Field(False)
+    diagram_type:Optional[str] = Field("none")
+    diagram_code:Optional[str] = Field(None)
