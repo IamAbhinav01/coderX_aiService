@@ -1,5 +1,5 @@
 from groq import Groq
-from config.config import Settings
+from config import Settings
 
 settings = Settings()
 

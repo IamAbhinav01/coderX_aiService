@@ -1,5 +1,5 @@
 from huggingface_hub import InferenceClient
-from config.config import Settings
+from config import Settings
 
 settings = Settings()
 

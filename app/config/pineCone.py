@@ -1,12 +1,11 @@
 from pinecone import Pinecone,ServerlessSpec
-from config.config import Settings
+from config import Settings
 
 settings = Settings()
 
 api_key = settings.PINECONE_API_KEY
 
 pc = Pinecone(api_key=api_key)
-
 
 if not pc.has_index(settings.PINECONE_INDEX_NAME):
     pc.create_index_for_model(
