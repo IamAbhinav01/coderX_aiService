@@ -34,3 +34,18 @@ class GeneratedProblemRaw(BaseModel):
     has_visual:Optional[bool] = Field(False)
     diagram_type:Optional[str] = Field("none")
     diagram_code:Optional[str] = Field(None)
+
+class ProblemRequest(BaseModel):
+    prompt:str = Field(...,description="User prompt or topic for problem generation")
+
+class GeneratedResponse(BaseModel):
+    title:str
+    description:str
+    difficulty:str
+    testCases:List[dict]
+    codeSnippets:List[dict]
+    editorial:str
+    topic:Optional[str] = None
+    imageUrl:Optional[str] = None
+    cache_hit:bool = Field(False,alias="_cache_hit")
+    similarity_score:Optional[float] = Field(None,alias="_similarity")
