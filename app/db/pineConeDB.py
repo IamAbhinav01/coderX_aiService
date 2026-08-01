@@ -4,7 +4,7 @@ from config.exception import PineConeVectorException
 from config.config import Settings
 from typing import Dict,Optional,Any
 from config.logger import setup_logger
-import json
+import json,uuid
 
 settings = Settings()
 logger = setup_logger()
@@ -82,5 +82,30 @@ class PineConeStore(InterfaceVectorStore):
             logger.error(f"PineCone search error : {e}")
             return None
 
+
+    def save_cache(self,prompt:str,payload:Dict[str,Any])->bool:
+
+        if not self.index:
+            return None
+
+        try:
+            prompt_id = f"prompt_{uuid.uuid4().hex[:12]}"
+            payload_json = json.dumps(payload)
+
+            self.index.upsert_records(
+                namespace=self.namespace,
+                records=[{
+                    "_id":prompt_id,
+                    "prompt_text":prompt,
+                    "payload_json":payload_json
+                }]
+            )
+
+            logger.info(f"[VECTOR CACHE SAVED] prompt_id: {prompt_id}")
+            return True
+        except Exception as e:
+            logger.error(f"PineCone cache error : {e}")
+            return False
+       
 
         
