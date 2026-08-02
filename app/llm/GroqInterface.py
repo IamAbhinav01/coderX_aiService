@@ -137,5 +137,7 @@ class GroqInterface(InterfaceLLMGroq):
                 return raw_problem
 
             logger.warning(f"[Attempt {attempt + 1}] Verification failed: {validation_err}. Retrying...")
-            
+            messages.append({"role":"assistant","content":raw_content})
+            messages.append({"role":"user","content":f"Verificatiion Error : {validation_err}. Fix solution and testcase inputs."})
+            raise GroqGenerationException("failed to generate a valid problem after maximum retires.")
     
