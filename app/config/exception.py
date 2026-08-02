@@ -16,3 +16,7 @@ class PineConeVectorException(ApplicationService):
     def __init__(self,message:str):
 
         super().__init__(f"[PineCone Vector Service Error] {message}",statuscode=500)
+
+class GroqGenerationException(ApplicationService):
+    def __init__(self, message:str):
+        super().__init__(f"[GROQ Generation Service Error] {message}",statuscode=500)
