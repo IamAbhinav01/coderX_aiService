@@ -2,6 +2,7 @@ from interfaces.llmInterface import InterfaceLLMGroq
 from models.model import GeneratedProblemRaw
 from config.config import Settings
 from typing import Optional
+from prompts.generationPrompt import prompt as SYSTEM_PROMPT
 from config.logger import setup_logger
 import re,json,groq,subprocess,sys
 
@@ -82,10 +83,10 @@ class GroqInterface(InterfaceLLMGroq):
             return "Test Cases lack output diversity."
         return None
     
-    # def GenerateProbelm(self, prompt:str)->GeneratedProblemRaw:
-    #     messages = [
-    #         {
-    #             "role":"system","content":
-    #         }
-    #     ]
+    def GenerateProbelm(self, prompt:str)->GeneratedProblemRaw:
+        messages = [
+            {
+                "role":"system","content":
+            }
+        ]
     
