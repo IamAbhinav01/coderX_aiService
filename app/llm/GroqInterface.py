@@ -86,7 +86,38 @@ class GroqInterface(InterfaceLLMGroq):
     def GenerateProbelm(self, prompt:str)->GeneratedProblemRaw:
         messages = [
             {
-                "role":"system","content":
+                "role":"system","content":SYSTEM_PROMPT
+            },
+            {
+                "role":"user","content":prompt
             }
         ]
+
+        max_retries = 5
+        for attempt in range(max_retries):
+            response = None
+            for current_model in self.models_to_try:
+                try:
+                    response = self.client.chat.completions.create(
+                        model=current_model,
+                        temperature=self.settings.TEMPERATURE,
+                        max_tokens=self.settings.GROQ_MAX_TOKENS,
+                        messages=messages,
+                        response_format={
+                            "type":"json_schema",
+                            "json_schema":{
+                                "name":"GenerateCodingQuestionRAW",
+                                "schema":GeneratedProblemRaw.model_json_schema()
+                            }
+                        }
+                    )
+                    break
+                except groq.RateLimitError:
+                    logger.warning(f"Model '{current_model}' hit rate limit. Trying fallback ...")
+                    continue
+                except Exception as e:
+                    logger.error(f"Error with model {current_model} : {e}")
+                    continue
+                if response is None:
+                    
     
