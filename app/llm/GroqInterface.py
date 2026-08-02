@@ -2,6 +2,7 @@ from interfaces.llmInterface import InterfaceLLMGroq
 from models.model import GeneratedProblemRaw
 from config.config import Settings
 from typing import Optional
+from config.exception import GroqGenerationException
 from prompts.generationPrompt import prompt as SYSTEM_PROMPT
 from config.logger import setup_logger
 import re,json,groq,subprocess,sys
@@ -118,6 +119,23 @@ class GroqInterface(InterfaceLLMGroq):
                 except Exception as e:
                     logger.error(f"Error with model {current_model} : {e}")
                     continue
-                if response is None:
-                    
+            if response is None:
+                GroqGenerationException("All Groq models failed or rate-limited.")
+            raw_content = response.choices[0].message.content or "{}"
+            try:
+                raw_json = json.loads(raw_content)
+                raw_problem = GeneratedProblemRaw.model_validate(raw_json)
+                raw_problem.reference_solution = self._clean_code(raw_problem.reference_solution)
+            except Exception as parse_err:
+                if attempt == (max_retries - 1):
+                    raise GroqGenerationException(f"Failed JSON schema validation :{parse_err}")
+                messages.append({"role":"user","content":f"Invalid JSON response: {parse_err}. Retry strict JSON."})
+                continue
+            validation_err = self._verify_solution_internal(raw_problem)
+            if validation_err is None:
+                logger.info(f"Successfully generated and verified problem: {raw_problem.title}")
+                return raw_problem
+
+            logger.warning(f"[Attempt {attempt + 1}] Verification failed: {validation_err}. Retrying...")
+            
     
