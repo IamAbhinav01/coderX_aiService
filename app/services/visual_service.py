@@ -4,13 +4,17 @@ from config.logger import setup_logger
 from models.model import DiagramType
 from config.config import Settings
 from typing import Optional
-import base64,urllib.parse
+import base64,urllib.parse,os,uuid
+from PIL import Image
 
 logger = setup_logger()
 
 class HybridVisualConnector(InterfaceVisualService):
-    def __init__(self,settings:Settings):
+    def __init__(self,settings:Settings, storage_dir:str = "app/static/generated_images"):
         self.settings = settings
+        self.storage_dir = storage_dir
+        os.makedirs(self.storage_dir,exist_ok=True)
+
         self.hf_client = Optional[InferenceClient] = None
         if settings.HF_TOKEN:
             try:
@@ -18,7 +22,25 @@ class HybridVisualConnector(InterfaceVisualService):
             except Exception as e:
                 logger.warning(f"HuggingFace client init warninga: {e}")
 
+    def _generate_image_from_HF(self,prompt:str,model:str = "ideogram-ai/ideogram-4-fp8")->Optional[str]:
+        if not self.hf_client:
+            logger.warning("HF_TOKEN is missing")
+            return None
+        try:
+            logger.info(f"Generating image from huggingFace")
+            image:Image.Image = self.hf_client.text_to_image(
+                prompt=prompt,
+                model=model
+            )
+            filename = f"image_{uuid.uuid4().hex[:10]}.png"
+            filepath = os.path.join(self.storage_dir,filename)
+            image.save(filepath,format="PNG")
 
+            logger.info(f"Succesfully generated and saved AI image to : {filepath}")
+            return f"/static/generated_images/{filename}"
+        except Exception as e:
+            logger.error(f"HuggingFace Image generation failed: {e}")
+            return None
     def generate_visual_url(self, has_visual:bool, diagram_type:DiagramType, diagram_code:Optional[str] = None, image_prompt:Optional[str] = None) -> Optional[str]:
 
         if not has_visual or diagram_type == DiagramType.NONE:
@@ -37,11 +59,12 @@ class HybridVisualConnector(InterfaceVisualService):
         if image_prompt and image_prompt.strip() and diagram_type == DiagramType.ILLUSTRATION:
             if self.hf_client:
                 try:
-                    logger.info(f"[VISUAL] Generating HuggingFace Image for prompt: '{image_prompt[:30]}...'")
-                    encoded_prompt = urllib.parse.quote(image_prompt)
+                    saved_image_path = self._generate_image_from_HF(image_prompt)
+                    if saved_image_path:
+                        return saved_image_path
+                    encoded_prompt = urllib.parse.quote(image_prompt.strip())
                     return f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=800&height=450&nologo=true"
                 except Exception as hf_err:
-                    logger.error(f"[VISUAL ERROR] HuggingFace generation failed: {hf_err}")
-            encoded_prompt = urllib.parse.quote(image_prompt)
-            return f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=800&height=450&nologo=true"
+                    logger.info(f"Error occured while generating image from HF , error : {hf_err}")
+                    
         return None         
