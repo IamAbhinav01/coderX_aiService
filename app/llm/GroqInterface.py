@@ -50,6 +50,14 @@ class GroqInterface(InterfaceLLMGroq):
                 total_arr_params += 1
                 if len(inp) >= 2:
                     multi_ele_cases += 1
+                elif len(v) == 1 and isinstance(v[0], int) and v[0] > 9:
+                            return f"Test Case {index + 1} parameter '{k}' contains a concatenated single number [{v[0]}] instead of a multi-element array like [1, 4, 3, 2, 5, 2]."
+            elif isinstance(inp, list):
+                total_array_params += 1
+                if len(inp) >= 2:
+                    multi_element_cases += 1
+                elif len(inp) == 1 and isinstance(inp[0], int) and inp[0] > 9:
+                    return f"Test Case {index + 1} contains a concatenated single number [{inp[0]}] instead of a multi-element array like [1, 4, 3, 2, 5, 2]."
             input_str = json.dumps(case.input) if not isinstance(case.input,str) else case.input
             try:
                 process = subprocess.Popen(
