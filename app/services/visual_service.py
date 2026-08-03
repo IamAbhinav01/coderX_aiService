@@ -15,7 +15,7 @@ class HybridVisualConnector(InterfaceVisualService):
         self.storage_dir = storage_dir
         os.makedirs(self.storage_dir,exist_ok=True)
 
-        self.hf_client = Optional[InferenceClient] = None
+        self.hf_client : Optional[InferenceClient] = None
         if settings.HF_TOKEN:
             try:
                 self.hf_client = InferenceClient(provider="fal-ai",api_key=settings.HF_TOKEN)
@@ -66,10 +66,10 @@ class HybridVisualConnector(InterfaceVisualService):
                 try:
                     saved_image_path = self._generate_image_from_HF(image_prompt)
                     if saved_image_path:
-                        return saved_image_path
+                        return VisualPayload(hasVisual=True, type=diagram_type.value, url=saved_image_path, diagramCode=None)
                     encoded_prompt = urllib.parse.quote(image_prompt.strip())
-                    pollinations_url = "https://image.pollinations.ai/prompt/{encoded_prompt}?width=800&height=450&nologo=true"
-                    return VisualPayload(hasVisual=True,type=diagram_type.value,url=pollinations_url,diagramCode=None)
+                    pollinations_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=800&height=450&nologo=true"
+                    return VisualPayload(hasVisual=True, type=diagram_type.value, url=pollinations_url, diagramCode=None)
                 except Exception as hf_err:
                     logger.info(f"Error occured while generating image from HF , error : {hf_err}")
                     

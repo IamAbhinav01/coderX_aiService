@@ -1,13 +1,13 @@
 from models.model import GeneratedProblemRaw
 from interfaces.runnerInterface import InterfaceRunner
-from typing import Optional,Any,List
+from typing import Optional,Any,List,Dict
 from config.logger import setup_logger
 import json,subprocess,sys
 
 logger = setup_logger()
 
 class SubProcessRunner(InterfaceRunner):
-    def verify_and_execute(self, raw_problem:GeneratedProblemRaw)->List[str,Any]:
+    def verify_and_execute(self, raw_problem:GeneratedProblemRaw)->List[Dict[str,Any]]:
         validated_cases = []
 
         for case in raw_problem.testCaseInputs:

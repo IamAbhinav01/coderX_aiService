@@ -72,7 +72,7 @@ class PineConeStore(InterfaceVectorStore):
                 if top_hit.score >= threshold: 
                     payload_str = top_hit.fields.get("payload_json")
                     if payload_str:
-                        payload = json.dumps(payload_str)
+                        payload = json.loads(payload_str)
                         payload["_similarity"] = round(top_hit.score,4)
                         payload["_cache_hit"] = True
 
@@ -86,7 +86,7 @@ class PineConeStore(InterfaceVectorStore):
     def save_cache(self,prompt:str,payload:Dict[str,Any])->bool:
 
         if not self.index:
-            return None
+            return False
 
         try:
             prompt_id = f"prompt_{uuid.uuid4().hex[:12]}"

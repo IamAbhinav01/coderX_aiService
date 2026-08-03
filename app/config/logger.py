@@ -1,7 +1,7 @@
 import logging,json,sys
 from datetime import datetime
 import pytz
-from config import Settings
+from config.config import Settings
 
 settings = Settings()
 
@@ -19,7 +19,7 @@ class JSON_formatter(logging.Formatter):
             log_data["exception"] = self.formatException(record.exc_info)
         return json.dumps(log_data)
 
-def setup_logger(name:str = settings.APP_NAME)->logging.Logger:
+def setup_logger(name:str = "CoderX_AI_SERVICE")->logging.Logger:
     logger = logging.getLogger(name=name)
     logger.setLevel(logging.INFO)
     if not logger.handlers:
