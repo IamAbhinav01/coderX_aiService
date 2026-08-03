@@ -18,7 +18,8 @@ from config.config import instantiate_env
 from config.logger import setup_logger
 from config.exception import ApplicationService
 from db.pineConeDB import PineConeStore
-from llm.GroqInterface import GroqInterface
+# from llm.GroqInterface import GroqInterface
+from llm.OllamaInterface import OllamaInterface
 from services.subprocessRunner import SubProcessRunner
 from services.visual_service import HybridVisualConnector
 from services.problem_service import ProblemService
@@ -37,7 +38,8 @@ async def lifespan(app: FastAPI):
     )
     vector_store.initialize_index()
     
-    llm_provider = GroqInterface(settings=settings)
+    llm_provider = OllamaInterface(settings=settings,model_name="qwen2.5-coder:7b")
+    # GroqInterface(settings=settings)
     code_runner = SubProcessRunner()
     visual_service = HybridVisualConnector(settings=settings)
     
