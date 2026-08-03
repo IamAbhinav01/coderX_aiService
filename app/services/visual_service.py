@@ -24,7 +24,7 @@ class HybridVisualConnector(InterfaceVisualService):
         if not has_visual or diagram_type == DiagramType.NONE:
             return None
 
-        if diagram_code and diagram_type in [DiagramType.TREE,DiagramType.GRAPH,DiagramType.GRID,DiagramType.LINKED_LIST]:
+        if diagram_code and diagram_code.strip() and diagram_type in [DiagramType.TREE,DiagramType.GRAPH,DiagramType.GRID,DiagramType.LINKED_LIST]:
             try:
                 cleaned_mermaid = diagram_code.replace("```mermaid", "").replace("```", "").strip()
                 encoded_b64 = base64.b64encode(cleaned_mermaid.encode("utf-8")).decode("utf-8")
@@ -34,7 +34,7 @@ class HybridVisualConnector(InterfaceVisualService):
             except Exception as e:
                 logger.error(f"[VISUAL Error] Mermaid encoding failed:{e}")
 
-        if image_prompt and diagram_type == DiagramType.ILLUSTRATION:
+        if image_prompt and image_prompt.strip() and diagram_type == DiagramType.ILLUSTRATION:
             if self.hf_client:
                 try:
                     logger.info(f"[VISUAL] Generating HuggingFace Image for prompt: '{image_prompt[:30]}...'")
