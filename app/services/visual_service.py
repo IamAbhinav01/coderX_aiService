@@ -44,7 +44,7 @@ class HybridVisualConnector(InterfaceVisualService):
     def generate_visual_url(self, has_visual:bool, diagram_type:DiagramType, diagram_code:Optional[str] = None, image_prompt:Optional[str] = None) -> VisualPayload:
 
         if not has_visual or diagram_type == DiagramType.NONE:
-            return None
+            return VisualPayload(hasVisual=False,type="none",url=None,diagramCode=None)
 
         if diagram_code and diagram_code.strip() and diagram_type in [DiagramType.TREE,DiagramType.GRAPH,DiagramType.GRID,DiagramType.LINKED_LIST]:
             try:
@@ -52,7 +52,12 @@ class HybridVisualConnector(InterfaceVisualService):
                 encoded_b64 = base64.b64encode(cleaned_mermaid.encode("utf-8")).decode("utf-8")
                 svg_url = f"https://mermaid.ink/svg/{encoded_b64}"
                 logger.info(f"[VISUAL] generated mermaid svg url : {svg_url[:60]}..")
-                return svg_url
+                return VisualPayload(
+                    hasVisual=True,
+                    type=diagram_type.value,
+                    url=svg_url,
+                    diagramCode=cleaned_mermaid
+                )
             except Exception as e:
                 logger.error(f"[VISUAL Error] Mermaid encoding failed:{e}")
 
@@ -63,8 +68,9 @@ class HybridVisualConnector(InterfaceVisualService):
                     if saved_image_path:
                         return saved_image_path
                     encoded_prompt = urllib.parse.quote(image_prompt.strip())
-                    return f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=800&height=450&nologo=true"
+                    pollinations_url = "https://image.pollinations.ai/prompt/{encoded_prompt}?width=800&height=450&nologo=true"
+                    return VisualPayload(hasVisual=True,type=diagram_type.value,url=pollinations_url,diagramCode=None)
                 except Exception as hf_err:
                     logger.info(f"Error occured while generating image from HF , error : {hf_err}")
                     
-        return None         
+        return VisualPayload(hasVisual=False,type="none",url=None,diagramCode=None)         
