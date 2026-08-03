@@ -1,7 +1,7 @@
 from huggingface_hub import InferenceClient
 from interfaces.visualInterface import InterfaceVisualService
 from config.logger import setup_logger
-from models.model import DiagramType
+from models.model import DiagramType,VisualPayload
 from config.config import Settings
 from typing import Optional
 import base64,urllib.parse,os,uuid
@@ -41,7 +41,7 @@ class HybridVisualConnector(InterfaceVisualService):
         except Exception as e:
             logger.error(f"HuggingFace Image generation failed: {e}")
             return None
-    def generate_visual_url(self, has_visual:bool, diagram_type:DiagramType, diagram_code:Optional[str] = None, image_prompt:Optional[str] = None) -> Optional[str]:
+    def generate_visual_url(self, has_visual:bool, diagram_type:DiagramType, diagram_code:Optional[str] = None, image_prompt:Optional[str] = None) -> VisualPayload:
 
         if not has_visual or diagram_type == DiagramType.NONE:
             return None

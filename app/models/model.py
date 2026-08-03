@@ -22,6 +22,12 @@ class CodeSnippet(BaseModel):
     midSnippet: Optional[str] = Field("", description="Boilerplate middle template code")
     endSnippet: str = Field(..., description="Closing boilerplate template code")
 
+class VisualPayload(BaseModel):
+    hasVisual: bool = Field(False)
+    type: str = Field("none")
+    url: Optional[str] = Field(None, description="Static local PNG image path or rendered SVG diagram URL")
+    diagramCode: Optional[str] = Field(None, description="Raw Mermaid code string for frontend DOM rendering")
+
 class DiagramType(str,Enum):
     TREE = "tree"
     GRAPH = "graph"
@@ -57,5 +63,6 @@ class GeneratedResponse(BaseModel):
     editorial:str
     topic:Optional[str] = None
     imageUrl:Optional[str] = None
+    visual: Optional[VisualPayload] = None
     cache_hit:bool = Field(False,alias="_cache_hit")
     similarity_score:Optional[float] = Field(None,alias="_similarity")
