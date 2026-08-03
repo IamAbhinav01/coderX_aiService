@@ -146,6 +146,12 @@ class GroqInterface(InterfaceLLMGroq):
 
             logger.warning(f"[Attempt {attempt + 1}] Verification failed: {validation_err}. Retrying...")
             messages.append({"role":"assistant","content":raw_content})
-            messages.append({"role":"user","content":f"Verificatiion Error : {validation_err}. Fix solution and testcase inputs."})
+            feedback = f"""Verification failed for generated problem:
+Error Details: {validation_err}
+CRITICAL INSTRUCTIONS TO FIX THIS ERROR:
+1. IF ARRAY ERROR: Update `testCaseInputs` array values to 3-6 distinct elements.
+2. IF EXECUTION ERROR: Ensure reference_solution reads JSON from sys.stdin.read(), calls build_input(), and prints ONLY valid JSON via print(json.dumps(output)).
+            """
+            messages.append({"role":"user","content":feedback})
             raise GroqGenerationException("failed to generate a valid problem after maximum retires.")
     
