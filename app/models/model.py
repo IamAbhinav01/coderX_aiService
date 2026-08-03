@@ -22,6 +22,14 @@ class CodeSnippet(BaseModel):
     midSnippet: Optional[str] = Field("", description="Boilerplate middle template code")
     endSnippet: str = Field(..., description="Closing boilerplate template code")
 
+class DiagramType(str,Enum):
+    TREE = "tree"
+    GRAPH = "graph"
+    GRID = "grid"
+    LINKED_LIST = "linked_list"
+    ILLUSTRATION = "illustration"
+    NONE = "none"
+
 class GeneratedProblemRaw(BaseModel):
     title: str = Field(..., description="A unique and descriptive title of the challenge")
     description: str = Field(..., description="Detailed description in markdown format explaining the task, constraints, and inputs")
@@ -32,8 +40,10 @@ class GeneratedProblemRaw(BaseModel):
     topic: Optional[str] = Field(None, description="Topic tag (e.g., 'Array', 'String')")
 
     has_visual:Optional[bool] = Field(False)
-    diagram_type:Optional[str] = Field("none")
+    diagram_type:Optional[DiagramType] = Field(DiagramType.NONE)
     diagram_code:Optional[str] = Field(None)
+
+    image_prompt : Optional[str] = Field(None,description="Detailed prompt for AI image generation if diagram_type is illustration")
 
 class ProblemRequest(BaseModel):
     prompt:str = Field(...,description="User prompt or topic for problem generation")
