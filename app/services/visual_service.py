@@ -4,7 +4,7 @@ from config.logger import setup_logger
 from models.model import DiagramType
 from config.config import Settings
 from typing import Optional
-import base64
+import base64,urllib.parse
 
 logger = setup_logger()
 
@@ -33,4 +33,15 @@ class HybridVisualConnector(InterfaceVisualService):
                 return svg_url
             except Exception as e:
                 logger.error(f"[VISUAL Error] Mermaid encoding failed:{e}")
-                
+
+        if image_prompt and diagram_type == DiagramType.ILLUSTRATION:
+            if self.hf_client:
+                try:
+                    logger.info(f"[VISUAL] Generating HuggingFace Image for prompt: '{image_prompt[:30]}...'")
+                    encoded_prompt = urllib.parse.quote(image_prompt)
+                    return f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=800&height=450&nologo=true"
+                except Exception as hf_err:
+                    logger.error(f"[VISUAL ERROR] HuggingFace generation failed: {hf_err}")
+            encoded_prompt = urllib.parse.quote(image_prompt)
+            return f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=800&height=450&nologo=true"
+        return None         
