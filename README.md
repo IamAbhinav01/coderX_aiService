@@ -1,107 +1,324 @@
-## architecture
+# CoderX AI Service
 
-# ![alt text](architecture.png)
+CoderX AI Service is a FastAPI-based backend that generates high-quality coding problems, validates their reference solutions, optionally creates visual assets, and returns a structured payload ready for frontend consumption. The service is designed to produce problem content dynamically from a user prompt and cache similar requests for reuse.
 
-## the output from llmm
+## Overview
 
-{
-"title": "Robot Grid Pathfinding",
-"description": "Find a path for a robot to reach the bottom-right corner of a grid from the top-left corner while avoiding obstacles.",
-"difficulty": "medium",
-"imageUrl": "/static/generated_images/image_ce4903b392.png",
-"visual": {
-"hasVisual": true,
-"type": "illustration",
-"url": "/static/generated_images/image_ce4903b392.png",
-"diagramCode": null
-},
-"testCases": [
-{
-"input": "{\"grid\": [[0, 0, 1], [0, 0, 0], [1, 0, 0]]}",
-"output": "[[0, 0], [0, 1], [1, 1], [1, 2], [2, 2]]"
-},
-{
-"input": "{\"grid\": [[0, 1, 0], [0, 0, 0], [0, 1, 0]]}",
-"output": "[[0, 0], [1, 0], [1, 1], [1, 2], [2, 2]]"
-},
-{
-"input": "{\"grid\": [[0, 0, 0], [0, 1, 0], [0, 0, 0]]}",
-"output": "[[0, 0], [0, 1], [0, 2], [1, 2], [2, 2]]"
-},
-{
-"input": "{\"grid\": [[0, 0, 0], [0, 0, 0], [0, 0, 0]]}",
-"output": "[[0, 0], [0, 1], [0, 2], [1, 2], [2, 2]]"
-},
-{
-"input": "{\"grid\": [[1, 1, 1], [1, 1, 1], [1, 1, 1]]}",
-"output": "null"
-}
-],
-"codeSnippets": [
-{
-"language": "python",
-"startSnippet": "def solve(self, grid):",
-"midSnippet": "",
-"endSnippet": "return path"
-},
-{
-"language": "java",
-"startSnippet": "public int[][] solve(int[][] grid) {",
-"midSnippet": "",
-"endSnippet": "}"
-},
-{
-"language": "cpp",
-"startSnippet": "vector<vector<int>> solve(vector<vector<int>>& grid) {",
-"midSnippet": "",
-"endSnippet": "}"
-}
-],
-"editorial": "### Optimal Solution Walkthrough\n\n`python\nimport sys, json\nfrom collections import deque\n\nclass Solution:\n    def solve(self, grid):\n        m, n = len(grid), len(grid[0])\n        directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]\n        queue = deque([(0, 0, [])])\n        visited = set((0, 0))\n        while queue:\n            x, y, path = queue.popleft()\n            path = path + [(x, y)]\n            if x == m - 1 and y == n - 1:\n                return path\n            for dx, dy in directions:\n                nx, ny = x + dx, y + dy\n                if (0 <= nx < m and 0 <= ny < n and grid[nx][ny] == 0 and (nx, ny) not in visited):\n                    queue.append((nx, ny, path))\n                    visited.add((nx, ny))\n        return None\n\n    def build_input(self, raw):\n        return raw['grid']\n\n    def serialize_output(self, result):\n        return result\n\nif __name__ == '__main__':\n    import sys, json\n    raw = json.loads(sys.stdin.read())\n    solution = Solution()\n    grid = solution.build_input(raw)\n    result = solution.solve(grid)\n    output = solution.serialize_output(result)\n    print(json.dumps(output))\n`",
-"topic": "Pathfinding",
-"\_cache_hit": false
-}
+This project combines four core capabilities:
 
-as well as
+- Problem generation using an LLM (currently Groq)
+- Automated reference-solution validation by executing Python code in a subprocess
+- Optional visual asset generation for diagrams or illustrations
+- Semantic caching using Pinecone vector search to reduce repeated work
 
+The resulting API returns a complete problem object with:
+
+- title and description
+- difficulty and topic
+- test cases
+- starter code snippets in Python, Java, and C++
+- editorial-style reference solution
+- visual payload and image URL when applicable
+
+## Architecture
+
+![alt text](architecture.png)
+The service is organized around a lightweight pipeline:
+
+1. A client sends a prompt to the API.
+2. The problem service checks whether a similar prompt already exists in the Pinecone cache.
+3. If no suitable cache hit is found, the LLM generates a structured problem payload.
+4. The generated reference solution is executed against the provided test inputs to verify that it works.
+5. A visual connector creates either a Mermaid-based diagram URL or an image URL.
+6. The final payload is stored in the vector database and returned to the client.
+
+### High-level flow
+
+```text
+Client Request
+    -> FastAPI endpoint
+    -> ProblemService
+        -> Vector cache lookup (Pinecone)
+        -> LLM generation (Groq)
+        -> Solution verification (subprocess runner)
+        -> Visual generation (Mermaid / Hugging Face / Pollinations)
+        -> Final payload + cache save
+```
+
+## Project Structure
+
+```text
+app/
+  main.py                  # FastAPI app entrypoint and API routes
+  config/
+    config.py              # Environment settings and config loading
+    exception.py           # Custom application exceptions
+    logger.py              # Structured JSON logging
+  db/
+    pineConeDB.py          # Pinecone vector store implementation
+  interfaces/
+    llmInterface.py        # LLM abstraction interface
+    runnerInterface.py     # Execution interface
+    vectorInterface.py     # Vector store interface
+    visualInterface.py     # Visual service interface
+  llm/
+    GroqInterface.py       # Groq-based LLM integration and validation logic
+    OllamaInterface.py     # Optional alternative integration (currently commented out)
+  models/
+    model.py               # Pydantic models for request/response schemas
+  prompts/
+    generationPrompt.py    # System prompt used for problem generation
+  services/
+    problem_service.py     # Main orchestration service
+    subprocessRunner.py    # Executes reference solutions in subprocesses
+    visual_service.py      # Diagram/image generation connector
+    subprocess_execution.py
+  static/
+    generated_images/      # Generated image assets
+  test/
+    pipelineChecker.py     # Basic validation or smoke-check logic
+```
+
+## Core Components
+
+### 1. FastAPI application
+
+The entrypoint is app/main.py. It:
+
+- initializes the application lifecycle
+- creates the shared problem service instance
+- exposes the API endpoints
+- mounts the static assets directory for generated visuals
+
+### 2. Problem orchestration
+
+The primary orchestration layer is app/services/problem_service.py. It coordinates the complete generation pipeline and decides whether to use cached content or generate a new problem.
+
+### 3. LLM integration
+
+The implementation in app/llm/GroqInterface.py talks to Groq and validates the generated problem JSON. It retries when the LLM output is malformed or when the produced solution fails execution-based checks.
+
+### 4. Solution verification
+
+The subprocess runner in app/services/subprocessRunner.py executes the generated reference solution against the supplied test cases. This helps ensure that the returned solution is not just syntactically plausible but actually runnable.
+
+### 5. Visual generation
+
+The visual connector in app/services/visual_service.py handles one of two common patterns:
+
+- Mermaid-based diagrams for tree/graph/grid/linked-list-style problems
+- Image generation for illustration-style prompts using Hugging Face or Pollinations fallback
+
+### 6. Vector caching
+
+The Pinecone integration in app/db/pineConeDB.py stores generated problem payloads by embedding the user prompt. This allows future similar prompts to be served from cache when the similarity threshold is met.
+
+## API Surface
+
+### Health check
+
+- GET /health
+- Returns a simple status response confirming the service is up
+
+### Generate problem
+
+- POST /api/v1/generate-problem
+- Request body: a JSON object containing a prompt
+
+Example request:
+
+```json
 {
-"title": "Invert Binary Tree",
-"description": "Write a function that inverts a binary tree. For example, the following tree: 4 / \\ 2 7 / \\ / \\ 1 3 6 9 should become: 4 / \\ 7 2 / \\ / \\ 9 6 3 1",
-"difficulty": "medium",
-"imageUrl": "https://mermaid.ink/svg/Z3JhcGggVEQKICAgIEEoKDQpKQogICAgQSAtLT4gQigoMikpCiAgICBBIC0tPiBDKCg3KSkKICAgIEIgLS0+IEQoKDEpKQogICAgQiAtLT4gRSgoMykpCiAgICBDIC0tPiBGKCg2KSkKICAgIEMgLS0+IEcoKDkpKQ==",
-"visual": {
-"hasVisual": true,
-"type": "tree",
-"url": "https://mermaid.ink/svg/Z3JhcGggVEQKICAgIEEoKDQpKQogICAgQSAtLT4gQigoMikpCiAgICBBIC0tPiBDKCg3KSkKICAgIEIgLS0+IEQoKDEpKQogICAgQiAtLT4gRSgoMykpCiAgICBDIC0tPiBGKCg2KSkKICAgIEMgLS0+IEcoKDkpKQ==",
-"diagramCode": "graph TD\n A((4))\n A --> B((2))\n A --> C((7))\n B --> D((1))\n B --> E((3))\n C --> F((6))\n C --> G((9))"
-},
-"testCases": [
-{
-"input": "{\"val\": 4, \"left\": {\"val\": 2, \"left\": {\"val\": 1, \"left\": null, \"right\": null}, \"right\": {\"val\": 3, \"left\": null, \"right\": null}}, \"right\": {\"val\": 7, \"left\": {\"val\": 6, \"left\": null, \"right\": null}, \"right\": {\"val\": 9, \"left\": null, \"right\": null}}}",
-"output": "{\"val\": 4, \"left\": {\"val\": 7, \"left\": {\"val\": 9, \"left\": null, \"right\": null}, \"right\": {\"val\": 6, \"left\": null, \"right\": null}}, \"right\": {\"val\": 2, \"left\": {\"val\": 3, \"left\": null, \"right\": null}, \"right\": {\"val\": 1, \"left\": null, \"right\": null}}}"
+  "prompt": "Generate a medium difficulty binary tree problem with a visual diagram"
 }
-],
-"codeSnippets": [
+```
+
+Example response:
+
+```json
 {
-"language": "python",
-"startSnippet": "class TreeNode:\n def __init__(self, x):\n self.val = x\n self.left = None\n self.right = None\n\nclass Solution:\n def invertTree(self, root):\n",
-"midSnippet": "",
-"endSnippet": " return root"
-},
-{
-"language": "java",
-"startSnippet": "public class TreeNode {\n int val;\n TreeNode left;\n TreeNode right;\n TreeNode(int x) { val = x; }\n}\n\nclass Solution {\n public TreeNode invertTree(TreeNode root) {",
-"midSnippet": "",
-"endSnippet": " }"
-},
-{
-"language": "cpp",
-"startSnippet": "struct TreeNode {\n int val;\n TreeNode *left;\n TreeNode *right;\n TreeNode(int x) : val(x), left(NULL), right(NULL) {}\n};\n\nclass Solution {\npublic:\n TreeNode* invertTree(TreeNode* root) {",
-"midSnippet": "",
-"endSnippet": " }"
+  "title": "Invert Binary Tree",
+  "description": "Write a function that inverts a binary tree.",
+  "difficulty": "medium",
+  "topic": "binary_tree",
+  "testCases": [],
+  "codeSnippets": [],
+  "editorial": "### Optimal Solution Walkthrough",
+  "imageUrl": null,
+  "visual": {
+    "hasVisual": false,
+    "type": "none",
+    "url": null,
+    "diagramCode": null
+  },
+  "_cache_hit": false
 }
-],
-"editorial": "### Optimal Solution Walkthrough\n\n`python\nimport json\n\nclass TreeNode:\n    def __init__(self, x):\n        self.val = x\n        self.left = None\n        self.right = None\n\nclass Solution:\n    def invertTree(self, root):\n        if root is None:\n            return None\n        root.left, root.right = self.invertTree(root.right), self.invertTree(root.left)\n        return root\n\n    @staticmethod\n    def build_input(raw):\n        if raw is None:\n            return None\n        root = TreeNode(raw['val'])\n        root.left = Solution.build_input(raw.get('left'))\n        root.right = Solution.build_input(raw.get('right'))\n        return root\n\n    @staticmethod\n    def serialize_output(root):\n        if root is None:\n            return None\n        return {\n            'val': root.val,\n            'left': Solution.serialize_output(root.left),\n            'right': Solution.serialize_output(root.right)\n        }\n\nif __name__ == '__main__':\n    import sys\n    raw = json.loads(sys.stdin.read())\n    root = Solution.build_input(raw)\n    solution = Solution()\n    inverted_root = solution.invertTree(root)\n    output = Solution.serialize_output(inverted_root)\n    print(json.dumps(output))\n`",
-"topic": "binary_tree",
-"\_cache_hit": false
-}
+```
+
+## Request and Response Models
+
+The request and response types are defined in app/models/model.py.
+
+### Main request model
+
+- ProblemRequest
+  - prompt: string
+
+### Main response model concepts
+
+- GeneratedResponse
+  - title
+  - description
+  - difficulty
+  - testCases
+  - codeSnippets
+  - editorial
+  - topic
+  - imageUrl
+  - visual
+  - \_cache_hit
+  - \_similarity
+
+## Environment Configuration
+
+The service expects a root-level .env file with the variables below.
+
+```env
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MAX_TOKENS=4096
+TEMPERATURE=0.7
+
+PINECONE_API_KEY=your_pinecone_api_key
+PINECONE_INDEX_NAME=coderx
+PINECONE_NAMESPACE=coding_Prompts
+
+HF_TOKEN=your_huggingface_token
+
+APP_NAME=CoderX_AI_SERVICE
+ENV=development
+PORT=8000
+```
+
+### Notes
+
+- The app uses pydantic-settings to load values from .env.
+- Missing credentials can cause the service to fail during initialization.
+- The visual service only uses Hugging Face if HF_TOKEN is present; otherwise it may fall back to other image generation URLs.
+
+## Setup and Installation
+
+### Prerequisites
+
+- Python 3.10+
+- pip or uv
+- Access to Groq
+- Access to Pinecone
+- Optional: Hugging Face token for image generation
+
+### Install dependencies
+
+```bash
+pip install -e .
+```
+
+Or with uv:
+
+```bash
+uv sync
+```
+
+## Running the Service
+
+### Development mode
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+### Production-style run
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+Once running, the API will be available at:
+
+- http://localhost:8000/docs for Swagger UI
+- http://localhost:8000/redoc for ReDoc
+
+## Generation Pipeline in Detail
+
+### Step 1: Cache lookup
+
+The service first checks Pinecone for a semantically similar prompt. If a high-confidence match exists, the cached payload is returned immediately with \_cache_hit: true.
+
+### Step 2: LLM problem generation
+
+If no cache hit is found, the system prompt in app/prompts/generationPrompt.py guides the LLM to produce a complete JSON problem object. The prompt is intentionally strict and requires:
+
+- valid JSON
+- self-contained reference solutions
+- test case inputs and expected outputs
+- code snippets for multiple languages
+- optional visual metadata
+
+### Step 3: Execution-based verification
+
+The generated reference solution is executed inside a subprocess. The runner attempts to validate the solution and capture output for supplied test cases. Any broken solution is treated as a generation failure and triggers retry logic.
+
+### Step 4: Visual asset selection
+
+Depending on the generated problem metadata:
+
+- Mermaid diagrams are encoded into a URL for frontend rendering
+- Illustration-style problems can generate image URLs
+- If no visual is needed, the visual payload is set to a disabled state
+
+### Step 5: Final response and caching
+
+The final response is assembled into a clean payload and then stored inside Pinecone so the next similar request can be served much faster.
+
+## Design Notes
+
+### Why subprocess execution?
+
+The current implementation validates generated solutions by running them in a subprocess rather than trusting the LLM output. This makes the system more robust and helps reduce invalid or non-executable code.
+
+### Why vector caching?
+
+Caching reduces repeated generation costs and improves latency when multiple users request similar problems. The service currently uses Pinecone for semantic similarity matching rather than simple exact-string matching.
+
+### Why structured models?
+
+The application uses Pydantic models to enforce a clear contract between generation, validation, and API output. This helps keep the problem payload consistent and easier to evolve.
+
+## Extensibility
+
+The architecture is already structured for extension:
+
+- Replace Groq with another provider by implementing the LLM interface
+- Swap Pinecone for another vector database by implementing the vector interface
+- Add more visual providers or renderers
+- Introduce asynchronous execution for larger workloads
+- Add authentication and rate limiting for production deployments
+
+## Current Limitations
+
+- The service currently depends on a live Groq and Pinecone configuration.
+- Visual generation is best-effort and may fall back to external URLs when image generation is unavailable.
+- The subprocess execution path is synchronous, so heavy traffic may require async processing in the future.
+- The current project is a backend service focused on problem generation rather than a full end-to-end learning platform.
+
+## Suggested Next Improvements
+
+- Add authentication and API keys for clients
+- Add request rate limiting
+- Add stronger validation for generated problem quality
+- Add support for asynchronous job queues
+- Add unit and integration tests around the full pipeline
+- Add Docker support for easier deployment
+
+## License
+
+This project is currently intended for internal experimentation and development use. Add your preferred license if you plan to distribute or commercialize it.

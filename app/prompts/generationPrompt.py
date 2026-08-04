@@ -67,19 +67,40 @@ You are an expert competitive programming problem designer. Your task is to gene
 
 If the problem involves visual structures (Binary Tree, Graph, Matrix/Grid, Linked List, Trapping Rainwater-style illustrations, etc.):
 
-- Set `"has_visual": true`. Otherwise set it to `false` and set `diagram_type`, `diagram_code`, and `image_prompt` all to `null`.
-- Set `diagram_type` to one of: `"tree"`, `"graph"`, `"grid"`, `"linked_list"`, `"illustration"`.
-- If `diagram_type` is `"tree"`, `"graph"`, `"linked_list"`, or `"grid"`:
-  - Provide clean, valid Mermaid.js syntax in `diagram_code`.
-  - Set `image_prompt` to `null`.
-  - The diagram must reflect the **first** test case's actual input values (not placeholder data), so the visual and the test case agree.
-  - Example (Binary Tree):
+- Set "has_visual": true. Otherwise set it to false and set diagram_type, diagram_code, and image_prompt all to null.
+- Set diagram_type to one of: "tree", "graph", "grid", "linked_list", "illustration".
+
+**The diagram's job is to illustrate the OPERATION, not just render the input structure.**
+A diagram that only draws the raw input (e.g. a linked list as a plain chain of circles) is INSUFFICIENT even if the values are correct — it fails to explain anything the description text didn't already say. Before writing diagram_code, first determine, from the first test case's input and its expected_output, which specific node(s)/edge(s)/cell(s)/index(es) are semantically relevant to the problem (the node being removed, the path being traversed, the cells holding trapped water, the subarray being reversed, etc). The diagram must visually distinguish those elements from the rest.
+
+- If diagram_type is "tree", "graph", "linked_list", or "grid":
+  - Provide clean, valid Mermaid.js syntax in diagram_code.
+  - Set image_prompt to null.
+  - The structure must reflect the first test case's actual input values (not placeholder data).
+  - Use Mermaid's style/classDef syntax to highlight the semantically relevant node(s) in a distinct color (e.g. red/orange fill) so the reader can see at a glance what the problem is operating on. Do not submit a diagram where every node/cell looks visually identical unless the problem truly has no distinguishing element (e.g. "compute the length of a linked list" has nothing to highlight).
+  - When the operation changes the structure (removal, insertion, reversal, rotation, swap, etc.), prefer showing a BEFORE and AFTER state as two labeled subgraphs (or two sequential diagrams joined with a divider node/arrow), computed from expected_output — not just the input state alone.
+
+  Example (Remove Nth Node From End, list=[1,2,3,4,5], n=2 → target node is "4", counting from the end):
   graph TD
-    A((1)) --> B((2))
-    A((1)) --> C((3))
-  - If `diagram_type` is `"illustration"`:
-  - Provide a concise, descriptive image-generation prompt in `image_prompt` (style, subject, layout — e.g., "A 2D elevation chart showing blue trapped rainwater between vertical gray bars, dark background, flat vector style").
-  - Set `diagram_code` to `null`.
+    subgraph Before
+      A1((1)) --> A2((2)) --> A3((3)) --> A4((4)) --> A5((5))
+    end
+    subgraph After
+      B1((1)) --> B2((2)) --> B3((3)) --> B5((5))
+    end
+    classDef target fill:#e74c3c,stroke:#333,color:#fff
+    class A4 target
+
+  Example (Binary Tree, highlighting a target node found by search):
+  graph TD
+    A((5)) --> B((3))
+    A --> C((8))
+    classDef target fill:#e74c3c,stroke:#333,color:#fff
+    class C target
+
+- If diagram_type is "illustration":
+  - Provide a concise, descriptive image-generation prompt in image_prompt that names both the raw structure AND what should be visually emphasized (e.g. "A 2D elevation chart showing blue trapped rainwater between vertical gray bars sized [0,1,0,2,1,0,1,3,2,1,2,1], water regions shaded distinctly from the bars, dark background, flat vector style").
+  - Set diagram_code to null.
 
 ---
 
@@ -160,6 +181,6 @@ Generate starter templates for **python**, **java**, and **cpp** with method sig
 Before returning the JSON, verify:
 1. All parameter names match across `reference_solution`, `codeSnippets`, and `testCaseInputs`.
 2. Every `expected_output` is a real computed value, not `null` or a guess.
-3. If `has_visual` is true, `diagram_code`/`image_prompt` are populated consistently with `diagram_type`, and (for diagrams) reflect the first test case's actual data.
+3. If has_visual is true: diagram_code/image_prompt are populated consistently with diagram_type, reflect the first test case's actual data, AND visually distinguish the problem-relevant element(s) rather than just rendering the raw input structure. For structure-changing operations, the diagram shows before/after rather than only the initial state.
 4. The output is valid JSON with no trailing commas, no comments, and no text outside the JSON object.
 """
