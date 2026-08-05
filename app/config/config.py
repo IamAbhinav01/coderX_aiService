@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     APP_NAME:str = "CoderX_AI_SERVICE"
     ENV:str = "development"
     PORT:int = 8000
+    AI_SERVICE_BASE_URL:str = "http://localhost:8000"
     GROQ_API_KEY:str
     GROQ_MODEL:str = "llama-3.3-70b-versatile"
     GROQ_MAX_TOKENS:int = 4096

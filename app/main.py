@@ -12,6 +12,7 @@ if root_dir not in sys.path:
 from fastapi import FastAPI, HTTPException, status, Depends
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from config.config import instantiate_env
@@ -58,6 +59,14 @@ app = FastAPI(
     description="Generate dynamic, fully verified coding challenges with reference solutions and test cases.",
     version="1.0.0",
     lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Create static dir if it doesn't exist

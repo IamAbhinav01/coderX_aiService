@@ -10,9 +10,14 @@ from PIL import Image
 logger = setup_logger()
 
 class HybridVisualConnector(InterfaceVisualService):
-    def __init__(self,settings:Settings, storage_dir:str = "app/static/generated_images"):
+    def __init__(self,settings:Settings, storage_dir:Optional[str] = None):
         self.settings = settings
-        self.storage_dir = storage_dir
+        if storage_dir is None:
+            # Anchor to app/static/generated_images relative to the app directory
+            app_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            self.storage_dir = os.path.join(app_dir, "static", "generated_images")
+        else:
+            self.storage_dir = storage_dir
         os.makedirs(self.storage_dir,exist_ok=True)
 
         self.hf_client : Optional[InferenceClient] = None
@@ -36,8 +41,10 @@ class HybridVisualConnector(InterfaceVisualService):
             filepath = os.path.join(self.storage_dir,filename)
             image.save(filepath,format="PNG")
 
-            logger.info(f"Succesfully generated and saved AI image to : {filepath}")
-            return f"/static/generated_images/{filename}"
+            base_url = getattr(self.settings, "AI_SERVICE_BASE_URL", "http://localhost:8000").rstrip("/")
+            full_image_url = f"{base_url}/static/generated_images/{filename}"
+            logger.info(f"Succesfully generated and saved AI image to : {filepath} (URL: {full_image_url})")
+            return full_image_url
         except Exception as e:
             logger.error(f"HuggingFace Image generation failed: {e}")
             return None
